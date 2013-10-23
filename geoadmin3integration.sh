@@ -18,7 +18,7 @@ cd $PROJECTPATH
 git checkout master
 git pull
 source rc_dev
-make cleanrc all
+make cleanall all
 
 #create snapshot
 sudo -u deploy deploy -c deploy/deploy.cfg $SNAPSHOTPATH
