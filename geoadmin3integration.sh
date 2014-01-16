@@ -24,12 +24,12 @@ make cleanall all
 sudo -u deploy deploy -c deploy/deploy.cfg $SNAPSHOTPATH
 
 #deploy this snapshot to integration
-sudo -u deploy deploy -r deploy/deploy.cfg ab $SNAPSHOTPATH
+sudo -u deploy deploy -r deploy/deploy.cfg int $SNAPSHOTPATH
 
 #create integration deploy script with this snapshot
 echo "#!/bin/bash" > $INTWITHSNAPFILE
 echo "cd " $PROJECTPATH >> $INTWITHSNAPFILE
-echo "sudo -u deploy deploy -r deploy/deploy.cfg ab "$SNAPSHOTPATH >> $INTWITHSNAPFILE
+echo "sudo -u deploy deploy -r deploy/deploy.cfg int "$SNAPSHOTPATH >> $INTWITHSNAPFILE
 chmod 777 $INTWITHSNAPFILE
 echo $INTWITHSNAPFILE " created."
 

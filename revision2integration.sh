@@ -8,10 +8,10 @@
 # - create script to deploy this snapshot to integration (for repeated task)
 # - create script to deploy this snapshot to production
 
-PRODFILE=`pwd`/chsdi2prod.sh
-INTWITHSNAPFILE=`pwd`/chsdi2integrationwithsnapshot.sh
-PROJECTPATH=/var/www/vhosts/mf-chsdi/private/chsdi/
-SNAPSHOTPATH=/var/www/vhosts/mf-chsdi/private/snapshots/`date '+%Y%m%d%H%M'`
+PRODFILE=`pwd`/revision2prod.sh
+INTWITHSNAPFILE=`pwd`/revision2integrationwithsnapshot.sh
+PROJECTPATH=/var/www/vhosts/mf-revision/private/revision/
+SNAPSHOTPATH=/var/www/vhosts/mf-revision/private/snapshots/`date '+%Y%m%d%H%M'`
 
 #build latest version
 cd $PROJECTPATH
