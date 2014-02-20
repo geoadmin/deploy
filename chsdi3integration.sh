@@ -15,8 +15,12 @@ SNAPSHOTPATH=/var/www/vhosts/mf-chsdi3/private/snapshots/`date '+%Y%m%d%H%M'`
 
 #build latest version
 cd $PROJECTPATH
+git reset --hard HEAD
+git checkout -b dummy_branch
+git branch -D master
+git fetch origin
 git checkout master
-git pull
+git branch -D dummy_branch
 buildout/bin/buildout -c buildout_dev.cfg
 
 #create snapshot
