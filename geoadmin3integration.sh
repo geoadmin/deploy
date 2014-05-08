@@ -43,4 +43,4 @@ echo "cd " $PROJECTPATH >> $PRODFILE
 echo "sudo -u deploy deploy -r deploy/deploy.cfg prod "$SNAPSHOTPATH >> $PRODFILE
 chmod 777 $PRODFILE
 echo $PRODFILE " created."
-
+echo "Snapshot directory: " $SNAPSHOTPATH
