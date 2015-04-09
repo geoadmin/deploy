@@ -91,4 +91,4 @@ sudo su - geodata 2> /dev/null << HERE
 HERE
 
 END=$(date +%s%3N)
-echo "finished ${0##*/} $* in $((END-START)) milliseconds"
+echo "finished ${0##*/} $* in $(format_milliseconds $((END-START)))"

@@ -3,10 +3,10 @@ MY_DIR=$(dirname $(readlink -f $0))
 source "$MY_DIR/includes.sh"
 
 display_usage() {
-    echo -e "Usage:\n$0 -s source_objects -t target_staging -a timestamp for BOD archiving (YYYYMMDD)"
+    echo -e "Usage:\n$0 -s source_objects -t target_staging -a timestamp for BOD snapshot/archive (YYYYMMDD)"
     echo -e "\t-s comma delimited list of source databases and/or tables - mandatory"
     echo -e "\t-t target staging - mandatory choose one of '$targets'"
-    echo -e "\t-a is optional and only for BOD valid \n"
+    echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
 
 while getopts ":s:t:a:" options; do
@@ -22,11 +22,11 @@ while getopts ":s:t:a:" options; do
             timestamp=$OPTARG
             ;;
         \? )
-            display_usage
+            display_usage 1>&5 2>&6
             exit 1
             ;;
         *)
-            display_usage
+            display_usage 1>&5 2>&6
             exit 1
             ;;
     esac
@@ -62,7 +62,11 @@ check_table() {
         AND confrelid::regclass = '$source_schema.$source_table'::regclass;
     "
     referencing_tables=$(psql -qAt -h localhost -U pgkogis -d $source_db -c "$referencing_tables_sql")
-    if [ $referencing_tables -gt 0 ]; then echo "cannot copy table $source_id, table is referenced by $referencing_tables objects, use db_copy instead." >&2; continue; fi
+    if [ $referencing_tables -gt 0 ] 
+    then 
+        echo "cannot copy table $source_id, table is referenced by $referencing_tables objects, use db_copy instead." >&2
+        continue
+    fi
 }
 
 check_database() {
@@ -79,17 +83,22 @@ bod_create_archive() {
     then
         if [[ ${#timestamp} > 0 ]]
         then
-            if [[ ! `date -d "$timestamp + 1 min"` ]]
+            if [[ ! $timestamp =~ (^[a-zA-Z0-9]+$)  ]]
             then
-                echo -e "Date must be YYYYMMDD. \n"
+                echo -e "timestamp must match the pattern ^[a-zA-Z0-9]+$\n"
                 exit 1
-            fi
+            fi             
             archive_bod=$source_db""$timestamp
             echo "Archiving $source_db as $archive_bod..."
             psql -U pgkogis -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$archive_bod';" >/dev/null
             dropdb -U pgkogis -h localhost --if-exists $archive_bod &> /dev/null 
             psql -U pgkogis -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$source_db';" >/dev/null
-            createdb -U pgkogis -h localhost -O postgres --encoding 'UTF-8' -T $source_db $archive_bod >/dev/null
+            createdb -U pgkogis -h localhost -O postgres --encoding 'UTF-8' -T $source_db $archive_bod >/dev/null            
+            if [[ ! -z "$ArchiveMode" ]]
+            then
+                # skip rest of loop if we are in pure archive mode (bod-only)
+                continue
+            fi
         else
             echo "Not archiving"
         fi  
@@ -208,15 +217,26 @@ echo "start ${0##*/} $* (pid: $$)"
 CPUS=`(grep "processor" < /proc/cpuinfo | wc -l) 2>/dev/null` || CPUS=1
 START=$(date +%s%3N)
 
-# check for mandatory arguments 
+# if source_object is bod and target is empty and timestamp is present and source_object does not contain any ","
+if [[ ${source_objects%_*} == bod && -z "$target" && ! -z "$timestamp" && ! "$source_objects" = *,* ]]
+then
+    ArchiveMode=true
+    echo "BOD pure archive mode $ArchiveMode"
+fi
+
+# check for mandatory arguments source_objects and target have to be present if ArchiveMode is not set 
 if [[ -z "$source_objects" || -z "$target" ]];
 then
-    echo "missing a required parameter (source_db -s and staging -t are required)" >&2
-    exit 1
+    # if not in pure archive mode exit script
+    if [[ -z "$ArchiveMode" ]]
+    then
+        echo "missing a required parameter (source_db -s and staging -t are required)" >&2
+        exit 1
+    fi
 fi
 
 # check if we have a valid target
-if [[ ! $targets == *$target* ]]
+if [[ ! $targets == *$target* ]] 
 then
     echo "valid deploy targets are: '$targets'" >&2
     exit 1
@@ -228,14 +248,7 @@ if [[ -z `psql -lqt -h localhost -U pgkogis` ]]; then
     exit 1
 fi
 
-# check for lockfile
-(set -o noclobber; echo "$locktext" > "$lockfile"  2> /dev/null) || { echo "lockfile found: $lockfile '$(cat $lockfile)'" >&2; exit 1; }
-
-trap 'rm -f "$lockfile"; echo "trap: script aborted" >&2; exit $?' INT TERM EXIT
-
-attached_slaves=$(psql -qAt -h localhost -d postgres -U pgkogis -c "select count(1) FROM pg_stat_replication where state='streaming';")
-
-# loop through source_object values
+# check source_objects
 for source_object in "${array_source[@]}"; do
     array=(${source_object//./ })
     # check source objects
@@ -243,6 +256,18 @@ for source_object in "${array_source[@]}"; do
         echo "table data sources have to be formatted like this: db.schema.table, database sources like this: db" >&2
         exit 1
     fi
+    array=()
+done
+
+# check for lockfile and create one
+(set -o noclobber; echo "$locktext" > "$lockfile"  2> /dev/null) || { echo "lockfile found: $lockfile '$(cat $lockfile)'" >&2; exit 1; }
+trap 'rm -f "$lockfile"; echo "trap: script aborted" >&2; exit $?' INT TERM EXIT
+
+attached_slaves=$(psql -qAt -h localhost -d postgres -U pgkogis -c "select count(1) FROM pg_stat_replication where state='streaming';")
+
+# loop through source_object values
+for source_object in "${array_source[@]}"; do
+    array=(${source_object//./ })
     # tables go here
     if [ "${#array[@]}" -eq "3" ]; then
         echo "processing table $source_object..."
@@ -278,7 +303,8 @@ for source_object in "${array_source[@]}"; do
 done
 
 END=$(date +%s%3N)
-echo "master has been updated in $((END-START)) milliseconds"
+echo "master has been updated in $(format_milliseconds $((END-START)))"
+echo "waiting for $attached_slaves slaves to be ready..."
 
 # wait for all slaves
 while :
@@ -303,11 +329,11 @@ do
     if [[ $diff -eq 0  && $slaves -eq $attached_slaves ]]
     then
         END_slaves=$(date +%s%3N)
-        echo "$slaves slaves have been updated in $((END_slaves-END)) milliseconds"
+        echo "$slaves slaves have been updated in $(format_milliseconds $((END_slaves-END)))"
         break
     fi
 done
-echo "finished ${0##*/} $* in $((END_slaves-START)) milliseconds"
+echo "finished ${0##*/} $* in $(format_milliseconds $((END_slaves-START)))"
 
 # concatenate arrays for dml and ddl trigger
 source_db=$(IFS=, ; echo "${array_source_db[*]}")
@@ -315,16 +341,19 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 
 # fire dml trigger in sub shell
 # redirect customized stdout and stderr to standard ones
-(
-bash "$MY_DIR/dml_trigger.sh" -s $target_combined -t $target 1>&5 2>&6
-)
-
-if [ "${#array_target_db[@]}" -gt "0" ]; then
-    # fire ddl trigger in sub shell
-    # redirect customized stdout and stderr to standard ones    
+if [[ -z "$ArchiveMode" ]]
+then
     (
-    bash "$MY_DIR/ddl_trigger.sh" -s $source_db -t $target 1>&5 2>&6
-    )  
+    bash "$MY_DIR/dml_trigger.sh" -s $target_combined -t $target 1>&5 2>&6
+    )
+    if [ "${#array_target_db[@]}" -gt "0" ]
+    then
+        # fire ddl trigger in sub shell
+        # redirect customized stdout and stderr to standard ones    
+        (
+        bash "$MY_DIR/ddl_trigger.sh" -s $source_db -t $target 1>&5 2>&6
+        )  
+    fi
 fi
 
 rm -f "$lockfile"

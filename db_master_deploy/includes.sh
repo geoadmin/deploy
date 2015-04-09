@@ -36,6 +36,12 @@ Ceiling () {
   python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
 }
 
+
+format_milliseconds() {
+    seconds=$(($1/1000))
+    printf '%dh:%dm:%ds.%d - %d milliseconds\n' $(($seconds/3600)) $(($seconds%3600/60)) $(($seconds%60)) $(($1 % 1000)) $1
+}
+
 exec 5>&1
 exec 6>&2
 # stdout to log function
@@ -45,4 +51,3 @@ exec 2> >(err)
 
 # force geodata
 if [[ $(whoami) != "geodata" ]]; then echo "This script must be run as geodata!" >&2 ; exit 1; fi
-

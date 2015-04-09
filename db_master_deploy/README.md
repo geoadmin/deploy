@@ -30,7 +30,7 @@ DB Suffix    | Meaning
 **_int**   | integration copy of _master database | 
 **_prod**  | production copy of _master database  | 
 **_demo** |  demo copy of _master database |
-**_YYYYMMDD** | timestamped copy of _master database (bod only, use parameter -a YYYYMMDD for the archive suffix) |
+**_[a-zA-Z0-9]\* ** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
 
 ###copy databases and or tables (deploy.sh)
 You can copy a comma delimited list of tables and/or database to one target. 
@@ -39,7 +39,9 @@ Normally we are deploying from a _master datasource to one of these targets. If 
 Table copy is performance optimized sql copy from stdout to stdin. 
 The job will be using all the available cores by splitting up the table into  parts with equal number of rows, indexes and constraints will be removed before writing the table and re-created afterwards.
 
-####Examples for table copies
+Depending on the composition of the source_object parameter and the other parameters the script can be executed in the following modes:
+
+####table-copy
 ```bash
 $ bash deploy.sh -s stopo_master.tlm.strasse -t int
 ```
@@ -50,7 +52,7 @@ The script fires the sphinx trigger script dml_trigger.sh
 
 Database copy is is an optimized version of ``createdb -T source_db``.
 
-####Examples for database copies
+####database-copy 
 Deploy bod to integration:
 ```bash
 $ bash deploy.sh -s bod_master -t int
@@ -64,14 +66,23 @@ Deploy bafu and stopo to production
 $ bash deploy.sh -s stopo_master,bafu_master -t prod
 ```
 
-####Examples for mixed database/table copy
+####mixed copy database/table
 Deploy bod to integration:
 ```bash
 $ bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t int
 ```
 
-The script fires the sphinx trigger script dml_trigger.sh for table and database copies.
-The script fires the github trigger script ddl_trigger.sh for database copies only.
+####bod archive
+Create an archive/snapshot of the BOD:
+```bash
+bash deploy.sh -s bod_master -a 20150301
+```
+This command will create a snapshot of ``bod_master -> bod_master20150301``. 
+There are no triggers fired.
+
+The deploy.sh script fires the sphinx trigger script dml_trigger.sh for table and database copies.
+
+The deploy.sh script fires the github trigger script ddl_trigger.sh for database copies only.
 
 ###dml trigger (dml_trigger.sh)
 SPHINX Index
