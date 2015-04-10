@@ -1,13 +1,15 @@
 #!/bin/bash
+#
+# update sphinx index
 MY_DIR=$(dirname $(readlink -f $0))
-source "$MY_DIR/includes.sh"
+source "${MY_DIR}/includes.sh"
 
 # SPHINX IP's
 SPHINX_DEV="10.220.4.145"
 SPHINX_DEMO=""
 SPHINX_INT="10.220.4.39"
 SPHINX_PROD="10.220.5.210 10.220.6.242"
-SPHINX=$SPHINX_DEV;
+SPHINX=${SPHINX_DEV};
 
 # SPHINX CONFIG AND TRIGGER
 SPHINX_PG_TRIGGER="/etc/sphinxsearch/pg2sphinx_trigger.py"
@@ -16,13 +18,13 @@ SPHINX_CONFIG="/etc/sphinxsearch/sphinx.conf"
 display_usage() {
     echo -e "Usage:\n$0 -t tables/databases -s staging" 
     echo -e "\t-s comma delimited list of tables and/or databases - mandatory" 
-    echo -e "\t-t target staging - mandatory choose one of '$targets'" 
+    echo -e "\t-t target staging - mandatory choose one of '${targets}'" 
 }
 
 while getopts ":s:t:" options; do
-    case "$options" in
+    case "${options}" in
         t)
-            target=$OPTARG
+            target=${OPTARG}
             ;;
         s)
             # convert commas to spaces
@@ -38,79 +40,77 @@ while getopts ":s:t:" options; do
             ;;
     esac
 done
+COMMAND="${0##*/} $* (pid: $$)"
 START=$(date +%s%3N)
-echo "start ${0##*/} $*"
+echo "start ${COMMAND}"
 
 # check for mandatory arguments 
-if [[ -z "$target" || -z "$tables" ]];
-then
+if [[ -z "${target}" || -z "${tables}" ]]; then
     echo "missing a required parameter (source_db -s and taget_db -t are required)" >&2
     display_usage
     exit 1
 fi
 
-if [[ ! $targets == *$target* ]]
-then
-    echo "valid deploy targets are: '$targets'" >&2
+if [[ ! ${targets} == *${target}* ]]; then
+    echo "valid deploy targets are: '${targets}'" >&2
     exit 1
 fi
 
-case $target in
+case ${target} in
     dev)
-        SPHINX=$SPHINX_DEV;
+        SPHINX=${SPHINX_DEV};
         ;;
 
     demo)
-        SPHINX=$SPHINX_DEMO;
+        SPHINX=${SPHINX_DEMO};
         ;;        
 
     int)
-        SPHINX=$SPHINX_INT;
+        SPHINX=${SPHINX_INT};
         ;;
 
     prod)
-        SPHINX=$SPHINX_PROD;
+        SPHINX=${SPHINX_PROD};
         ;;
         
     *)
-        echo "there is no sphinx host defined for staging $staging" >&2
+        echo "there is no sphinx host defined for staging ${staging}" >&2
         exit 1
 esac
 
-[[ ! -z "$SPHINX" ]] || { echo "please define a sphinx host for $target" >&2; exit 1; }
+[[ ! -z "${SPHINX}" ]] || { echo "please define a sphinx host for ${target}" >&2; exit 1; }
 
-echo "$SPHINX ($tables -> $target)..."
+echo "${SPHINX} (${tables} -> ${target})..."
 # connect to sphinx instance and update sphinx indexes
 echo "Updating sphinx indexes"
-echo "sphinx hosts: $SPHINX"
-echo "db pattern: $tables"
-for sphinx in $SPHINX
+echo "sphinx hosts: ${SPHINX}"
+echo "db pattern: ${tables}"
+for sphinx in ${SPHINX}
 do
-    echo "opening ssh connection to $target sphinx host: $sphinx ..."
-    ssh -T $sphinx /bin/bash << bla
+    echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
+    ssh -T ${sphinx} /bin/bash << bla
         sudo su - sphinxsearch  << "HERE"
-            if [ -f $SPHINX_CONFIG ]
-            then
-                for table in $tables
+            if [ -f ${SPHINX_CONFIG} ]; then
+                for table in ${tables}
                 do
-                    echo "  update sphinx indexes that use the database source: \$table ..."
-                    python -u $SPHINX_PG_TRIGGER -d \$table -c update -s $SPHINX_CONFIG 
+                    echo "  update sphinx indexes that use the database source: \${table} ..."
+                    python -u ${SPHINX_PG_TRIGGER} -d \${table} -c update -s ${SPHINX_CONFIG}
                 done
                 sleep 2
                 # check service status, if not running start service
                 if  ! pgrep searchd > /dev/null
                 then
-                    echo "Sphinx Service is not running on host $sphinx" >&2
+                    echo "Sphinx Service is not running on host ${sphinx}" >&2
                     echo "starting sphinx service"
                     /etc/init.d/sphinxsearch start | grep -i "WARNING\|ERROR"
                 fi
                 echo -e "sphinx service is running with process id: \$(pgrep searchd)"
             else
-                echo "could not open sphinx config: $SPHINX_CONFIG" >&2
+                echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
                 exit 1
             fi
 HERE
 bla
 done
 END=$(date +%s%3N)
-echo "finished ${0##*/} $* in $(format_milliseconds $((END-START)))"
+echo "finished ${COMMAND} in $(format_milliseconds $((END-START)))"

@@ -39,10 +39,10 @@ trap 'rm -f "$lockfile"; echo "script aborted" >&2; exit $?' INT TERM EXIT
 echo "start importing databases"
 for staging in master
 do
-    source=`eval echo "\${source[$staging]}"`
-    suffix=`eval echo "\${dbsuffix[$staging]}"`
+    source=$(eval echo "\${source[$staging]}")
+    suffix=$(eval echo "\${dbsuffix[$staging]}")
     psql -l -h $source -U pgkogis  &> /dev/null || { echo "$staging error connecting to $source ..."; continue; }
-    for database in `psql -U pgkogis -h "$source" -t -c "$LOOP_SQL" -d template1`
+    for database in $(psql -U pgkogis -h "$source" -t -c "$LOOP_SQL" -d template1)
     do
         DB_START=$(date +%s%3N)
         echo "$staging - importing database $database to $database$suffix from $source ($staging) ..."
