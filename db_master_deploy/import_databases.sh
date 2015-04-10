@@ -52,7 +52,11 @@ do
         dropdb --if-exists "$database$suffix" &>/dev/null
         createdb "$database$suffix" &>/dev/null
         pg_restore -j 8 --no-owner -Fd -d $database$suffix "/tmp/$database$suffix/"  &>/dev/null
-        ##pg_dump -h $source -U pgkogis -o -Fc $database | pg_restore  --no-owner -Fc -d $database$suffix
+        # add read only transaction to database if target is not master
+        if [[ ! $staging == master ]]
+        then
+            psql -U pgkogis -h localhost -d template1 -c "alter database $database$suffix SET default_transaction_read_only = on;" >/dev/null
+        fi
         DB_END=$(date +%s%3N)
         echo "$staging - db $database restored to $database$suffix in $((DB_END-DB_START)) miliseconds"
         echo "$staging - removing temporary files ..."

@@ -141,9 +141,22 @@ copy_database() {
     psql -U pgkogis -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$target_db';" >/dev/null
     dropdb -U pgkogis -h localhost --if-exists $target_db &>/dev/null
     psql -U pgkogis -h localhost -d template1 -c "alter database $target_db_tmp rename to $target_db;" >/dev/null 
+
+    # add some metainformation to the copied database as comment
+    psql -U pgkogis -d template1 -h localhost -c "COMMENT ON DATABASE $target_db IS 'copied from $source_db on $(date '+%F %T') with command ${0##*/} $* by user $USER';" > /dev/null
+
+    # set database to read-only if it is not a _master database
+    if [[ ! $target == master ]]
+    then
+        psql -U pgkogis -h localhost -d template1 -c "alter database $target_db SET default_transaction_read_only = on;" >/dev/null
+    else
+        psql -U pgkogis -h localhost -d template1 -c "alter database $target_db SET default_transaction_read_only = off;" >/dev/null
+    fi
 }
 
 copy_table() {
+    # remove read only transaction from database
+    psql -U pgkogis -h localhost -d template1 -c "alter database $target_db SET default_transaction_read_only = off;" >/dev/null
     # get primary keys for table sorting
     primary_keys_sql="SELECT string_agg(a.attname,', ')
     FROM   pg_index i
@@ -210,6 +223,12 @@ copy_table() {
             echo "CREATE FOREIGN KEY CONSTRAINT $i ON $target_id ..."
             echo "ALTER TABLE ONLY $target_schema.$target_table ADD CONSTRAINT $i ${foreign_keys[$i]};" | psql -U pgkogis -h localhost -d $target_db &> /dev/null
         done
+    fi
+
+    # add read only transaction to database if target is not master
+    if [[ ! $target == master ]]
+    then
+        psql -U pgkogis -h localhost -d template1 -c "alter database $target_db SET default_transaction_read_only = on;" >/dev/null
     fi
 }
 
