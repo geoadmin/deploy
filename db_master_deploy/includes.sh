@@ -2,9 +2,19 @@
 set -e
 set -o pipefail
 USER=$(logname) # get user behind sudo su - 
-INFO="${0##*/} - $USER - [$$] - INFO"
-ERROR="${0##*/} - $USER - [$$] - ERROR"
-locktext="${0##*/} - [$$] locked by ${USER} @ $(date +"%F %T")"
+
+# if trigger script is called by deploy.sh, log parents pid in syslog
+# PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
+PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
+SYSLOGPID=$$
+if [[ ${PARENT_COMMAND} == *deploy.sh ]]; then
+    SYSLOGPID="${PPID}..$$"
+fi
+INFO="${0##*/} - $USER - [${SYSLOGPID}] - INFO"
+ERROR="${0##*/} - $USER - [${SYSLOGPID}] - ERROR"
+
+COMMAND="${0##*/} $* (pid: $$)"
+locktext="${0##*/} - [$$] locked by ${USER} ${COMMAND} @ $(date +"%F %T")"
 lockfile="/tmp/db_deploy.lock"
 
 # coloured output

@@ -33,7 +33,6 @@ while getopts ":s:t:" options; do
     esac
 done
 
-COMMAND="${0##*/} $* (pid: $$)"
 echo "start ${COMMAND}" 
 START=$(date +%s%3N)
 

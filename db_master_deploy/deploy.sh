@@ -305,7 +305,6 @@ copy_table() {
     fi
 }
 
-COMMAND="${0##*/} $* (pid: $$)"
 echo "start ${COMMAND}"
 CPUS=$(grep "processor" < /proc/cpuinfo | wc -l) || CPUS=1
 START=$(date +%s%3N)
