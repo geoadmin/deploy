@@ -29,12 +29,13 @@ DB Suffix    | Meaning
 **_dev**   | development copy of _master database  | 
 **_int**   | integration copy of _master database | 
 **_prod**  | production copy of _master database  | 
-**_demo** |  demo copy of _master database |
+**_demo** |  demo copy of _master database, used for demo instances |
+**_tile** |  tile copy of _master database, used for tile generation |
 **_[a-zA-Z0-9]\* ** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
 
 ###copy databases and or tables (deploy.sh)
 You can copy a comma delimited list of tables and/or database to one target. 
-The following targets can be used ``dev int prod demo``. 
+The following targets can be used ``dev int prod demo tile``. 
 Normally we are deploying from a _master datasource to one of these targets. If you choose another source, the script will ask you for confirmation.
 Table copy is performance optimized sql copy from stdout to stdin. 
 The job will be using all the available cores by splitting up the table into  parts with equal number of rows, indexes and constraints will be removed before writing the table and re-created afterwards.

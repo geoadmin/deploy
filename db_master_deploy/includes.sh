@@ -22,7 +22,7 @@ red='\e[0;31m'
 NC='\e[0m' # No Color
 
 # space delimited list of valid deploy targets, the target will be used as database suffix
-targets="dev int prod demo"
+targets="dev int prod demo tile"
 
 #######################################
 # Logging
