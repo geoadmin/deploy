@@ -31,7 +31,7 @@ DB Suffix    | Meaning
 **_prod**  | production copy of _master database  | 
 **_demo** |  demo copy of _master database, used for demo instances |
 **_tile** |  tile copy of _master database, used for tile generation |
-**_[a-zA-Z0-9]\* ** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
+**_``[a-zA-Z0-9]``+** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
 
 ###copy databases and or tables (deploy.sh)
 You can copy a comma delimited list of tables and/or database to one target. 
@@ -84,6 +84,53 @@ There are no triggers fired.
 The deploy.sh script fires the sphinx trigger script dml_trigger.sh for table and database copies.
 
 The deploy.sh script fires the github trigger script ddl_trigger.sh for database copies only.
+
+###default data deploy worklow
+```
+          +--------------+                                                                                    
+          |              |                                                                                    
+          |              |                                                                                    
+          |              |                                                                                    
+          |    _prod     | <---+                                                                              
+          |              |     |                                                                              
+          |              |     |           +-----------------------------------------------------------------+
+          |              |     |           | Default database deploy workflow                                |
+          +--------------+     |           |                                                                 |
+                               C           | A: deploy from master to dev                                    |
+          +--------------+     |           |    bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t dev |
+          |              |     |           |                                                                 |
+          |              |     |           |                                                                 |
+          |              |     |           | B: deploy from master to int                                    |
++-------> |    _int      +-----+           |    bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t int |
+|         |              |                 |                                                                 |
+|         |              |                 |                                                                 |
+|         |              |                 | C: deploy from int to prod                                      |
+|         +--------------+                 |     bash deploy.sh -s bod_int,stopo_int.tlm.strasse -t prod     |
+|                                          |                                                                 |
+|         +--------------+                 +-----------------------------------------------------------------+
+|         |              |                                                                                    
+|         |              |                                                                                    
+|         |              |                                                                                    
+B    +--> |    _dev      |                                                                                    
+|    |    |              |                                                                                    
+|    |    |              |                                                                                    
+|    |    |              |                                                                                    
+|    |    +--------------+                                                                                    
+|    A                                                                                                        
+|    |                                                                                                        
+|    |    +--------------+                                                                                    
+|    |    |              |                                                                                    
+|    |    |              |                                                                                    
+|    |    |              |                                                                                    
++----+----+   _master    |                                                                                    
+          |              |                                                                                    
+          |              |                                                                                    
+          |              |                                                                                    
+          +--------------+                                                                                    
+```
+* This is the default workflow for data updates. It should be bypassed only in exceptional circumstances. 
+* New data will always be created on _master databases. The other databases are read-only. 
+* every deploy to prod has to be deployed to int first. It should always be in "pre-production" state.
 
 ###dml trigger (dml_trigger.sh)
 SPHINX Index
