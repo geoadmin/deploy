@@ -253,7 +253,7 @@ copy_table() {
     echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}" 
 
     echo "drop indexes on ${target_id}"
-    (pg_dump -U pgkogis -h localhost --if-exists -c -t ${source_schema}.${source_table} -s ${source_db} 2>/dev/null | egrep "\bDROP INDEX\b" | psql -d "${target_db}" -U pgkogis -h localhost 2>/dev/null )
+    (pg_dump -U pgkogis -h localhost --if-exists -c -t ${source_schema}.${source_table} -s ${source_db} 2>/dev/null | egrep "\bDROP INDEX\b" | psql -d "${target_db}" -U pgkogis -h localhost 2>/dev/null ) || true
 
     # populate array with foreign key constraints on target table
     declare -A foreign_keys=( )
@@ -289,7 +289,7 @@ copy_table() {
     )
 
     echo "create indexes on ${target_id}"
-    ( pg_dump -U pgkogis -h localhost --if-exists -c -t ${source_schema}.${source_table} -s ${source_db} 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -U pgkogis -h localhost -d $@ -c "{}"' -- "${target_db}" ) 
+    ( pg_dump -U pgkogis -h localhost --if-exists -c -t ${source_schema}.${source_table} -s ${source_db} 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -U pgkogis -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true 
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
         for i in "${!foreign_keys[@]}"
@@ -349,10 +349,8 @@ for source_object in "${array_source[@]}"; do
     array=()
 done
 
-# check for lockfile and create one
-(set -o noclobber; echo "${locktext}" > "${lockfile}"  2> /dev/null) || { echo "lockfile found: ${lockfile} '$(cat ${lockfile})'" >&2; exit 1; }
-trap 'rm -f "${lockfile}"; echo "trap: script aborted" >&2; exit 1' INT TERM EXIT
-
+# check for lockfile, if there is one exit script, lock file is created by import_databases.sh
+(ls ${lockfile} &> /dev/null) && { echo "lockfile found: ${lockfile} '$(cat ${lockfile})'" >&2; exit 1; }
 attached_slaves=$(psql -qAt -h localhost -d postgres -U pgkogis -c "select count(1) FROM pg_stat_replication where state='streaming';")
 
 # loop through source_object values
@@ -393,10 +391,16 @@ for source_object in "${array_source[@]}"; do
 done
 
 END=$(date +%s%3N)
-echo "master has been updated in $(format_milliseconds $((END-START)))"
-echo "waiting for ${attached_slaves} slaves to be ready..."
 
-# wait for all slaves
+# create new xlog position
+$(psql -qAt -h localhost -U pgkogis -d template1 -c "SELECT pg_switch_xlog();" > /dev/null)
+# read new xlog position
+MASTER_XLOG=$(psql -qAt -h localhost -U pgkogis -d template1 -c "SELECT pg_current_xlog_location();")
+
+echo "master has been updated in $(format_milliseconds $((END-START))) to xlog position: ${MASTER_XLOG}"
+echo "waiting for ${attached_slaves} slaves to be pushed to xlog position ${MASTER_XLOG}..."
+
+# wait for all slaves until they have replayed the new xlog
 while :
 do
     diff=999
@@ -411,11 +415,11 @@ do
     -t \
     --field-separator ' ' \
     --quiet \
-    -c "select count(1) as slaves, coalesce(sum(pg_xlog_location_diff(sent_location,replay_location)),0) as diff FROM pg_stat_replication where state IN('streaming') ;")
+    -c "select count(1) as slaves, coalesce(sum(CASE WHEN diff >= 0 then diff ELSE NULL END)) as diff FROM ( SELECT pg_xlog_location_diff('${MASTER_XLOG}',replay_location) as diff from pg_stat_replication where state IN ('streaming')) sub;")
 
     if [[ ${diff} -eq 0  && ${slaves} -eq ${attached_slaves} ]]; then
         END_slaves=$(date +%s%3N)
-        echo "${slaves} slaves have been updated in $(format_milliseconds $((END_slaves-END)))"
+        echo "${slaves} slaves have been updated in $(format_milliseconds $((END_slaves-END))) to xlog position: ${MASTER_XLOG}"
         break
     fi
 done
@@ -441,6 +445,5 @@ then
     fi
 fi
 
-rm -f "${lockfile}"
-trap - INT TERM EXIT
-echo "finished ${COMMAND} in $(format_milliseconds $((END_slaves-START)))"
+END_trigger=$(date +%s%3N)
+echo "finished ${COMMAND} in $(format_milliseconds $((END_trigger-START)))"

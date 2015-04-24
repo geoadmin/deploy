@@ -34,7 +34,7 @@ while getopts ":s:t:" options; do
 done
 
 echo "start ${COMMAND}" 
-START=$(date +%s%3N)
+START_DDL=$(date +%s%3N)
 
 # check for mandatory arguments 
 if [[ -z "${source_db}" || -z "${target}" ]]; then
@@ -71,6 +71,11 @@ for db in "${array_source[@]}"
 do
     db=${db%_*}                # remove db suffix lubis_3d_master -> lubis_3d
     target_db="${db}_${target}"    # lubis_3d -> lubis_3d_dev
+    # do not dump _test databases
+    if [[ ${db} == *_test ]]; then
+        echo "skip ddl trigger for database ${db} ..."
+        continue
+    fi
     dumpfile=$(printf "%s%s.sql" "${DUMPDIRECTORY}${target}/" "${db}")
     echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
     pg_dump -U pgkogis -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
@@ -89,5 +94,5 @@ sudo su - geodata 2> /dev/null << HERE
     fi
 HERE
 
-END=$(date +%s%3N)
-echo "finished ${COMMAND} in $(format_milliseconds $((END-START)))"
+END_DDL=$(date +%s%3N)
+echo "finished ${COMMAND} in $(format_milliseconds $((END_DDL-START_DDL)))"

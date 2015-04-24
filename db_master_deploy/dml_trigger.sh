@@ -40,7 +40,7 @@ while getopts ":s:t:" options; do
             ;;
     esac
 done
-START=$(date +%s%3N)
+START_DML=$(date +%s%3N)
 echo "start ${COMMAND}"
 
 # check for mandatory arguments 
@@ -111,5 +111,5 @@ do
 HERE
 bla
 done
-END=$(date +%s%3N)
-echo "finished ${COMMAND} in $(format_milliseconds $((END-START)))"
+END_DML=$(date +%s%3N)
+echo "finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
