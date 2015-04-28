@@ -123,7 +123,7 @@ bod_create_archive() {
     if [[ ${source_db%_*} == bod ]]; then
         if [[ ${#timestamp} > 0 ]]; then
             if [[ ! ${timestamp} =~ (^[a-zA-Z0-9]+$)  ]]; then
-                echo -e "timestamp must match the pattern ^[a-zA-Z0-9]+$\n"
+                echo "timestamp must match the pattern [a-zA-Z0-9]+"  >&2
                 exit 1
             fi             
             archive_bod="${source_db}${timestamp}"
@@ -433,15 +433,15 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 if [[ -z "${ArchiveMode}" ]]
 then
     (
-    bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
+    [[ ! ${target} == tile ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones    
         (
-        bash "${MY_DIR}/ddl_trigger.sh" -s ${source_db} -t ${target} 1>&5 2>&6
-        )  
+        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s ${source_db} -t ${target} 1>&5 2>&6
+        )   
     fi
 fi
 
