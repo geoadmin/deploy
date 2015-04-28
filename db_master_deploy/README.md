@@ -137,3 +137,13 @@ SPHINX Index
 
 ###ddl trigger (ddl_trigger.sh)
 Update DDL dump Repository in Github https://github.com/geoadmin/db
+
+###custom master / slave postgres configuration
+The following custom configuration should be present on the slaves behind pg.bgdi.ch:
+```
+# https://github.com/geoadmin/deploy/issues/6
+max_standby_streaming_delay = 10min
+max_standby_archive_delay = 10min
+```
+
+These parameters can be configured in the file ``/etc/postgresql/9.4/main/postgresql_puppet_extras.conf``
