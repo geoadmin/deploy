@@ -433,15 +433,15 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 if [[ -z "${ArchiveMode}" ]]
 then
     (
-    bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
+    [[ ! ${target} == tile ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones    
         (
-        bash "${MY_DIR}/ddl_trigger.sh" -s ${source_db} -t ${target} 1>&5 2>&6
-        )  
+        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s ${source_db} -t ${target} 1>&5 2>&6
+        )   
     fi
 fi
 
