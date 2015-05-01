@@ -351,7 +351,7 @@ done
 
 # check for lockfile, if there is one exit script, lock file is created by import_databases.sh
 (ls ${lockfile} &> /dev/null) && { echo "lockfile found: ${lockfile} '$(cat ${lockfile})'" >&2; exit 1; }
-attached_slaves=$(psql -qAt -h localhost -d postgres -U pgkogis -c "select count(1) FROM pg_stat_replication where state='streaming';")
+attached_slaves=$(psql -qAt -h localhost -d postgres -U pgkogis -c "select count(1) FROM pg_replication_slots where active=TRUE;")
 
 # loop through source_object values
 for source_object in "${array_source[@]}"; do
