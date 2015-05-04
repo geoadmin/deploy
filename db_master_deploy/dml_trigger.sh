@@ -21,6 +21,45 @@ display_usage() {
     echo -e "\t-t target staging - mandatory choose one of '${targets}'" 
 }
 
+#######################################
+# update sphinx host with database pattern
+# Globals:
+#   target
+#   tables # comma delimited list of tables/databases
+#   SPHINX_CONFIG
+#   SPHINX_PG_TRIGGER
+# Arguments:
+#   $1 # sphinx host
+# Returns:
+#   None
+#######################################
+update_sphinx() {
+echo "opening ssh connection to ${target} sphinx host: $1 ..."
+ssh -T $1 /bin/bash << bla
+        sudo su - sphinxsearch  << "HERE"
+            if [ -f ${SPHINX_CONFIG} ]; then
+                for table in ${tables}
+                do
+                    echo "  update sphinx indexes that use the database source: \${table} ..."
+                    python -u ${SPHINX_PG_TRIGGER} -d \${table} -c update -s ${SPHINX_CONFIG}
+                done
+                sleep 2
+                # check service status, if not running start service
+                if  ! pgrep searchd > /dev/null
+                then
+                    echo "Sphinx Service is not running on host $1" >&2
+                    echo "starting sphinx service"
+                    /etc/init.d/sphinxsearch start | grep -i "WARNING\|ERROR"
+                fi
+                echo -e "sphinx service is running with process id: \$(pgrep searchd)"
+            else
+                echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
+                exit 1
+            fi
+HERE
+bla
+}
+
 while getopts ":s:t:" options; do
     case "${options}" in
         t)
@@ -86,30 +125,9 @@ echo "sphinx hosts: ${SPHINX}"
 echo "db pattern: ${tables}"
 for sphinx in ${SPHINX}
 do
-    echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
-    ssh -T ${sphinx} /bin/bash << bla
-        sudo su - sphinxsearch  << "HERE"
-            if [ -f ${SPHINX_CONFIG} ]; then
-                for table in ${tables}
-                do
-                    echo "  update sphinx indexes that use the database source: \${table} ..."
-                    python -u ${SPHINX_PG_TRIGGER} -d \${table} -c update -s ${SPHINX_CONFIG}
-                done
-                sleep 2
-                # check service status, if not running start service
-                if  ! pgrep searchd > /dev/null
-                then
-                    echo "Sphinx Service is not running on host ${sphinx}" >&2
-                    echo "starting sphinx service"
-                    /etc/init.d/sphinxsearch start | grep -i "WARNING\|ERROR"
-                fi
-                echo -e "sphinx service is running with process id: \$(pgrep searchd)"
-            else
-                echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
-                exit 1
-            fi
-HERE
-bla
+    { update_sphinx ${sphinx}; } &
 done
+wait
+
 END_DML=$(date +%s%3N)
 echo "finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
