@@ -142,10 +142,3 @@ check_env() {
 
 # check for env variables
 check_env
-
-# force geodata
-if [[ $(whoami) != "geodata" ]]; 
-then 
-    echo "This script must be run as geodata!" >&2
-    exit 1
-fi
