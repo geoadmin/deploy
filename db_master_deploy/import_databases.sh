@@ -27,8 +27,6 @@ if [[ $USER_SCRIPT != "postgres" ]]; then
     exit 1
 fi 
 
-
-
 # check for lockfile
 (set -o noclobber; echo "$locktext" > "$lockfile"  2> /dev/null) || { echo "lockfile found: $lockfile '$(cat $lockfile)'" >&2; exit 1; }
 
@@ -41,21 +39,21 @@ for staging in master
 do
     source=$(eval echo "\${source[$staging]}")
     suffix=$(eval echo "\${dbsuffix[$staging]}")
-    psql -l -h $source -U pgkogis  &> /dev/null || { echo "$staging error connecting to $source ..."; continue; }
-    for database in $(psql -U pgkogis -h "$source" -t -c "$LOOP_SQL" -d template1)
+    psql -l -h $source  &> /dev/null || { echo "$staging error connecting to $source ..."; continue; }
+    for database in $(psql -h "$source" -t -c "$LOOP_SQL" -d template1)
     do
         DB_START=$(date +%s%3N)
         echo "$staging - importing database $database to $database$suffix from $source ($staging) ..."
         rm -rf "/tmp/$database$suffix/" &> /dev/null
-        pg_dump -h $source -U pgkogis -o -Fd -f "/tmp/$database$suffix/" -j 8 $database
-        psql -U pgkogis -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$database$suffix';" >/dev/null
+        pg_dump -h $source -o -Fd -f "/tmp/$database$suffix/" -j 8 $database
+        psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$database$suffix';" >/dev/null
         dropdb --if-exists "$database$suffix" &>/dev/null
-        createdb "$database$suffix" &>/dev/null
-        pg_restore -j 8 --no-owner -Fd -d $database$suffix "/tmp/$database$suffix/"  &>/dev/null
+        createdb -U postgres "$database$suffix" &>/dev/null
+        pg_restore -U postgres -j 8 --no-owner -Fd -d $database$suffix "/tmp/$database$suffix/"  &>/dev/null
         # add read only transaction to database if target is not master
         if [[ ! $staging == master ]]
         then
-            psql -U pgkogis -h localhost -d template1 -c "alter database $database$suffix SET default_transaction_read_only = on;" >/dev/null
+            psql -h localhost -d template1 -c "alter database $database$suffix SET default_transaction_read_only = on;" >/dev/null
         fi
         DB_END=$(date +%s%3N)
         echo "$staging - db $database restored to $database$suffix in $((DB_END-DB_START)) miliseconds"
@@ -64,7 +62,6 @@ do
     done
 done
 echo "import finished"
-
 
 rm -f "$lockfile"
 trap - INT TERM EXIT
