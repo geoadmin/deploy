@@ -48,14 +48,14 @@ if [[ ! ${targets} == *${target}* ]]; then
 fi
 
 # check db access
-if [[ -z $(psql -lqt -h localhost -U pgkogis 2> /dev/null) ]]; then
+if [[ -z $(psql -lqt -h localhost 2> /dev/null) ]]; then
     echo "Unable to connect to database" >&2
     exit 1
 fi
 
 # check if source database exists
 for i in "${array_source[@]}"; do
-    if [[ -z $(psql -lqt -h localhost -U pgkogis | egrep "\b${i}\b" 2> /dev/null) ]]; then
+    if [[ -z $(psql -lqt -h localhost | egrep "\b${i}\b" 2> /dev/null) ]]; then
         echo "No existing databases are named ${i}." >&2
         exit 1
     fi
@@ -78,7 +78,7 @@ do
     fi
     dumpfile=$(printf "%s%s.sql" "${DUMPDIRECTORY}${target}/" "${db}")
     echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
-    pg_dump -U pgkogis -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
+    pg_dump -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
 done
 
 # update git

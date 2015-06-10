@@ -11,11 +11,7 @@ Clone the git repository to geodata's home:
 $ git clone git@github.com:geoadmin/deploy.git
 $ cd deploy/db_master_deploy/
 ```
-Make sure that geodata .pgpass file exists. It should contain the credentials for superuser ``pgkogis``
-```bash
-$ echo "*:5432:*:pgkogis:xxxxxxxx" >> /home/geodata/.pgpass
-$ chmod 0600 /home/geodata/.pgpass
-```
+Make sure that geodata .pgpass file exists. It should contain the credentials for db superuser.
 
 The script output will be written to syslog ``/var/log/messages`` and can be analyzed with kibana interface.
 
