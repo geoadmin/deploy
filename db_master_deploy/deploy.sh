@@ -69,8 +69,8 @@ check_table() {
     fi
 
     # check if source and target table have the same structure (column name and data type)
-    source_columns=$(psql -h localhost -d ${source_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' order by 1;")
-    target_columns=$(psql -h localhost -d ${target_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}' order by 1;")
+    source_columns=$(psql -h localhost -d ${source_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';")
+    target_columns=$(psql -h localhost -d ${target_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}';")
     if [ ! "${source_columns}" == "${target_columns}" ]; then
         echo "structure of source and target table is different." >&2
         exit 1
@@ -203,9 +203,10 @@ copy_database() {
     # add some metainformation to the copied database as comment
     psql -d template1 -h localhost -c "COMMENT ON DATABASE ${target_db} IS 'copied from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
 
-    # set database to read-only if it is not a _master database
-    if [[ ! ${target} == master ]]; then
-        psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
+    # set database to read-only if it is not a _master or _demo database
+    REGEX="^(master|demo)$"
+    if [[ ! ${target} =~ ${REGEX} ]]; then
+        psql -U pgkogis -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
     fi
