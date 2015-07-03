@@ -10,8 +10,13 @@ SYSLOGPID=$$
 if [[ ${PARENT_COMMAND} == *deploy.sh ]]; then
     SYSLOGPID="${PPID}..$$"
 fi
-INFO="${0##*/} - $USER - [${SYSLOGPID}] - INFO"
-ERROR="${0##*/} - $USER - [${SYSLOGPID}] - ERROR"
+comment="manual db deploy"
+if [ "${message}" ]; then
+    comment="${message}"
+fi
+
+INFO="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - INFO"
+ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
 locktext="${0##*/} - [$$] locked by ${USER} ${COMMAND} @ $(date +"%F %T")"
