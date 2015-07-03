@@ -6,7 +6,6 @@
 # copy tables                           [ -s table      -t target   ]
 # archive/snapshot bod                  [ -s bod_master -a 20150303 ]
 MY_DIR=$(dirname $(readlink -f $0))
-source "${MY_DIR}/includes.sh"
 
 display_usage() {
     echo -e "Usage:\n$0 -s source_objects -t target_staging -a timestamp for BOD snapshot/archive (YYYYMMDD)"
@@ -15,7 +14,7 @@ display_usage() {
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
 
-while getopts ":s:t:a:" options; do
+while getopts ":s:t:a:m:" options; do
     case "${options}" in
         s)
             source_objects=${OPTARG}
@@ -27,6 +26,9 @@ while getopts ":s:t:a:" options; do
         a)
             timestamp=${OPTARG}
             ;;
+        m)
+            message=${OPTARG}
+            ;;
         \? )
             display_usage 1>&5 2>&6
             exit 1
@@ -37,6 +39,8 @@ while getopts ":s:t:a:" options; do
             ;;
     esac
 done
+
+source "${MY_DIR}/includes.sh"
 
 #######################################
 # pre-copy checks for tables
