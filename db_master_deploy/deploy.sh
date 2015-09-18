@@ -73,8 +73,9 @@ check_table() {
     fi
 
     # check if source and target table have the same structure (column name and data type)
-    source_columns=$(psql -h localhost -d ${source_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';")
-    target_columns=$(psql -h localhost -d ${target_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}';")
+    source_columns=$(psql -h localhost -d ${source_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' order by 1;")
+    columns=$(psql -h localhost -d ${source_db} -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command 
+    target_columns=$(psql -h localhost -d ${target_db} -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}' order by 1;")
     if [ ! "${source_columns}" == "${target_columns}" ]; then
         echo "structure of source and target table is different." >&2
         sleep 1; echo "debug output" >&5
@@ -293,7 +294,7 @@ copy_table() {
         offset=$(echo "((${i}-1)*${increment})" | bc)
         if [ $((offset+${increment})) -gt ${rows} ]; then counter=${rows}; else counter=$((offset+${increment}));fi
         echo "dumping ${offset}..${counter}"
-        ( psql -h localhost -qAt -d ${source_db} -c "COPY ( SELECT * FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d ${target_db} -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} from stdin with csv; SET session_replication_role = DEFAULT;" )& pids="${pids} $!"
+        ( psql -h localhost -qAt -d ${source_db} -c "COPY ( SELECT ${columns} FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d ${target_db} -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} (${columns}) from stdin with csv; SET session_replication_role = DEFAULT;" )& pids="${pids} $!"
     done;  
     wait ${pids} 2> /dev/null
     )
