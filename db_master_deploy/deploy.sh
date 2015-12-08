@@ -310,8 +310,9 @@ copy_table() {
         done
     fi
 
-    # add read only transaction to database if target is not master
-    if [[ ! ${target} == master ]]; then
+    # set database to read-only if it is not a _master or _demo database
+    REGEX="^(master|demo)$"
+    if [[ ! ${target} =~ ${REGEX} ]]; then
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     fi
 }
