@@ -114,7 +114,37 @@ check_database() {
     # check if source database exists
     if [[ -z $(psql -lqt -h localhost | egrep "\b${source_db}\b" 2> /dev/null) ]]; then
         echo "No existing databases are named ${source_db}." >&2
-        eNonexit 1
+        exit 1
+    fi
+}
+
+#######################################
+# update materialized views in current databases
+# Globals:
+#   source_db
+#   source_schema
+#   source_table
+#   target_db
+#   target_schema
+#   target_table
+# Arguments:
+#   $1: table | database
+# Returns:
+#   None
+#######################################
+update_materialized_views() {
+    echo "check for materialized views"
+    if [ "$1" == "table" ]; then
+        for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
+            echo "updating materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
+            PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}');" -d ${target_db} >/dev/null
+            array_target_combined+=("${target_db}.${matview}")
+        done
+    elif [ "$1" == "database" ]; then
+        for matview in $(psql -h localhost -qAt -c "Select _bgdi_showmaterializedviews();;" -d ${source_db} 2> /dev/null); do
+            echo "updating materialized view ${source_db}.${matview} before starting deploy ..."
+            PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}');" -d ${source_db} >/dev/null
+        done
     fi
 }
 
@@ -309,6 +339,8 @@ copy_table() {
             echo "ALTER TABLE ONLY ${target_schema}.${target_table} ADD CONSTRAINT ${i} ${foreign_keys[${i}]};" | psql -h localhost -d ${target_db} &> /dev/null
         done
     fi
+    # update materialized views in target database after table copy
+    update_materialized_views table
 
     # set database to read-only if it is not a _master or _demo database
     REGEX="^(master|demo)$"
@@ -361,8 +393,6 @@ for source_object in "${array_source[@]}"; do
     array=()
 done
 
-# check for lockfile, if there is one exit script, lock file is created by import_databases.sh
-(ls ${lockfile} &> /dev/null) && { echo "lockfile found: ${lockfile} '$(cat ${lockfile})'" >&2; exit 1; }
 attached_slaves=$(psql -qAt -h localhost -d postgres -c "select count(1) FROM pg_replication_slots where active=TRUE;")
 
 # loop through source_object values
@@ -397,6 +427,7 @@ for source_object in "${array_source[@]}"; do
         array_target_combined+=(${target_db})
         check_database
         check_source
+        update_materialized_views database
         bod_create_archive
         copy_database        
     fi    
