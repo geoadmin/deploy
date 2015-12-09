@@ -135,9 +135,10 @@ check_database() {
 update_materialized_views() {
     echo "check for materialized views"
     if [ "$1" == "table" ]; then
-        for matview in $(psql -h localhost -qAt -c "Select view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
+        for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
             echo "updating materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
             PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}');" -d ${target_db} >/dev/null
+            array_target_combined+=("${target_db}.${matview}")
         done
     elif [ "$1" == "database" ]; then
         for matview in $(psql -h localhost -qAt -c "Select _bgdi_showmaterializedviews();;" -d ${source_db} 2> /dev/null); do
