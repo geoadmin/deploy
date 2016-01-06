@@ -475,7 +475,7 @@ do
     --quiet \
     -c "select count(1) as slaves, coalesce(sum(CASE WHEN diff >= 0 then diff ELSE NULL END)) as diff FROM ( SELECT pg_xlog_location_diff('${MASTER_XLOG}',replay_location) as diff from pg_stat_replication where state IN ('streaming')) sub;")
 
-    if [[ ${diff} -eq 0  && ${slaves} -eq ${attached_slaves} ]]; then
+    if [[ ${diff} -eq 0 ]]; then
         END_slaves=$(date +%s%3N)
         echo "${slaves} slaves have been updated in $(format_milliseconds $((END_slaves-END))) to xlog position: ${MASTER_XLOG}"
         break
