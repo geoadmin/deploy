@@ -29,6 +29,9 @@ while getopts ":s:t:a:m:" options; do
         m)
             export message=${OPTARG}
             ;;
+        r)
+            refreshmatviews=1
+            ;;
         \? )
             display_usage 1>&5 2>&6
             exit 1
@@ -132,30 +135,32 @@ check_database() {
 # Returns:
 #   None
 #######################################
-update_materialized_views() {
-    echo "check for materialized views"
-    if [ "$1" == "table_scan" ]; then
-        for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
-            echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
-            array_matviews+=("${target_db}.${matview}")
-        done
-    elif [ "$1" == "table_commit" ]; then
-        for matview in "${array_matviews[@]}"; do
-            target_db=$(echo $matview | cut -d '.' -f 1)
-            matview=$(echo $matview | cut -d '.' -f 1 --complement)
-            psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
-            echo "table_commit: updating materialized view ${matview} ..."
-            PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${target_db} >/dev/null
-            array_target_combined+=("${target_db}.${matview}")
-            psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
-        done
-    elif [ "$1" == "database" ]; then
-        for matview in $(psql -h localhost -qAt -c "Select _bgdi_showmaterializedviews();" -d ${source_db} 2> /dev/null); do
-            echo "database: updating materialized view ${source_db}.${matview} before starting deploy ..."
-            PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${source_db} >/dev/null
-        done
-    fi
-}
+if refreshmatviews == 1; then
+    update_materialized_views() {
+        echo "check for materialized views"
+        if [ "$1" == "table_scan" ]; then
+            for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
+                echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
+                array_matviews+=("${target_db}.${matview}")
+            done
+        elif [ "$1" == "table_commit" ]; then
+            for matview in "${array_matviews[@]}"; do
+                target_db=$(echo $matview | cut -d '.' -f 1)
+                matview=$(echo $matview | cut -d '.' -f 1 --complement)
+                psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
+                echo "table_commit: updating materialized view ${matview} ..."
+                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${target_db} >/dev/null
+                array_target_combined+=("${target_db}.${matview}")
+                psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
+            done
+        elif [ "$1" == "database" ]; then
+            for matview in $(psql -h localhost -qAt -c "Select _bgdi_showmaterializedviews();" -d ${source_db} 2> /dev/null); do
+                echo "database: updating materialized view ${source_db}.${matview} before starting deploy ..."
+                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${source_db} >/dev/null
+            done
+        fi
+    }
+fi
 
 #######################################
 # create archive/snapshot copy of bod
