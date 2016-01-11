@@ -140,6 +140,13 @@ The following custom configuration should be present on the slaves behind pg.bgd
 # https://github.com/geoadmin/deploy/issues/6
 max_standby_streaming_delay = 10min
 max_standby_archive_delay = 10min
+
+# log queries and duration if query execution takes more than 500ms
+log_min_duration_statement = 500
+
+# lock timeout to 10 seconds
+lock_timeout = 10000
+
 ```
 
 These parameters can be configured in the file ``/etc/postgresql/9.4/main/postgresql_puppet_extras.conf``
