@@ -10,10 +10,13 @@ MY_DIR=$(dirname $(readlink -f $0))
 display_usage() {
     echo -e "Usage:\n$0 -s source_objects -t target_staging -a timestamp for BOD snapshot/archive (YYYYMMDD)"
     echo -e "\t-s comma delimited list of source databases and/or tables - mandatory"
-    echo -e "\t-t target staging - mandatory choose one of '${targets}'"
-    echo -e "\t-r materialized view to refresh - Optional. You can define (with dbname.schema.tablename !!) one or more materialized views to refresh'"
+    echo -e "\t-t target staging - mandatory choose one of 'dev int prod demo tile'"
+    echo -e "\t-r refresh materialized views true|false - Optional, default: true'"
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
+
+# default values
+refreshmatviews=true
 
 while getopts ":s:t:a:m:r:" options; do
     case "${options}" in
@@ -32,21 +35,15 @@ while getopts ":s:t:a:m:r:" options; do
             ;;
         r)
             refreshmatviews=${OPTARG}
-            IFS=',' read -ra array_matviews <<< "${refreshmatviews}"
-            ;;
-        \? )
-            display_usage 1>&5 2>&6
-            exit 1
             ;;
         *)
-            display_usage 1>&5 2>&6
+            display_usage
             exit 1
             ;;
     esac
 done
 
 source "${MY_DIR}/includes.sh"
-
 #######################################
 # pre-copy checks for tables
 # Globals:
@@ -137,37 +134,31 @@ check_database() {
 # Returns:
 #   None
 #######################################
-if [ ${array_matviews+1} ]; then
-    update_materialized_views() {
-        echo "working for materialized views"
-        #if [ "$1" == "table_scan" ]; then
-        #    for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
-        #        echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
-        #        array_matviews+=("${target_db}.${matview}")
-        #    done
-        #elif [ "$1" == "table_commit" ]; then
-        if [ "$1" == "table_commit" ]; then
-            for targetmatview in "${array_matviews[@]}"; do
-                IFS='.' read -ra array <<< "${targetmatview}"
-                target_schema=${array[1]}
-                target_table=${array[2]}
+update_materialized_views() {
+    if [[ "${refreshmatviews}" =~ ^true$ ]]; then
+        if [ "$1" == "table_scan" ]; then
+            for matview in $(psql -h localhost -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d ${target_db} 2> /dev/null); do
+                echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
+                array_matviews+=("${target_db}.${matview}")
+            done
+        elif [ "$1" == "table_commit" ]; then
+            for matview in "${array_matviews[@]}"; do
+                target_db=$(echo $matview | cut -d '.' -f 1)
+                matview=$(echo $matview | cut -d '.' -f 1 --complement)
                 psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
-                echo "table_commit: updating materialized view ${target_table} ... in ${target_db}"
-                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${target_schema}.${target_table}'::regclass::text);" -d ${target_db} >/dev/null
-                array_target_combined+=("${target_db}.${target_schema}.${target_table}")
+                echo "table_commit: updating materialized view ${matview} ..."
+                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${target_db} >/dev/null
+                array_target_combined+=("${target_db}.${matview}")
                 psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
             done
         elif [ "$1" == "database" ]; then
-            for targetmatview in "${array_matviews[@]}"; do
-                IFS='.' read -ra array <<< "${targetmatview}"
-                target_schema=${array[1]}
-                target_table=${array[2]}
-                echo "database: updating materialized view ${target_table} before starting deploy ..."
-                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${target_schema}.${target_table}'::regclass::text);" -d ${source_db} >/dev/null
+            for matview in $(psql -h localhost -qAt -c "Select _bgdi_showmaterializedviews();" -d ${source_db} 2> /dev/null); do
+                echo "database: updating materialized view ${source_db}.${matview} before starting deploy ..."
+                PGOPTIONS='--client-min-messages=warning' psql -h localhost -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d ${source_db} >/dev/null
             done
         fi
-    }
-fi
+    fi
+}
 
 #######################################
 # create archive/snapshot copy of bod
@@ -361,7 +352,7 @@ copy_table() {
         done
     fi
     # update materialized views in target database after table copy
-    #update_materialized_views table_scan
+    update_materialized_views table_scan
 
     # set database to read-only if it is not a _master or _demo database
     REGEX="^(master|demo)$"
@@ -389,6 +380,12 @@ if [[ -z "${source_objects}" || -z "${target}" ]]; then
         echo "missing a required parameter (source_db -s and staging -t are required)" >&2
         exit 1
     fi
+fi
+
+# check if refresh materialized view switch is either true or false
+if [[ ! "${refreshmatviews}" =~ ^(true|false)$ ]]; then
+    echo "wrong parameter -r ${refreshmatviews} , should be true or false" >&2
+    exit 1
 fi
 
 # check if we have a valid target
@@ -448,9 +445,7 @@ for source_object in "${array_source[@]}"; do
         array_target_combined+=(${target_db})
         check_database
         check_source
-        if [ ${array_matviews+1]} ]; then
-            update_materialized_views database
-        fi
+        update_materialized_views database
         bod_create_archive
         copy_database        
     fi
@@ -463,7 +458,6 @@ if [ "${#array_matviews[@]}" -gt "0" ]; then
     array_matviews=($(printf "%s\n" "${array_matviews[@]}" | sort -u)); 
     update_materialized_views table_commit
 fi
-
 
 # create new xlog position
 $(psql -qAt -h localhost -d template1 -c "SELECT pg_switch_xlog();" > /dev/null)
