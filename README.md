@@ -1,4 +1,4 @@
-Bascic principles of these scripts
+Basic principles of these scripts
 =================================
 
 When running each of these scripts, the following is done:
