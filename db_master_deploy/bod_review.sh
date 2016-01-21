@@ -1,10 +1,14 @@
 #!/bin/bash
 #
-# script for database and table managment on streaming replication master
+# script for bod review
 # p.e.
-# copy databases                        [ -s database   -t target   ]
-# copy tables                           [ -s table      -t target   ]
-# archive/snapshot bod                  [ -s bod_master -a 20150303 ]
+# bod_master                            [ -d bod_master     ]
+# bod_prod                              [ -d bod_prod       ]
+#
+# The script will do the following actions on the given database
+# * json dump of the chsdi relevant views and columns
+# * create or update an equally named branch in github
+#
 set -e
 MY_DIR=$(dirname $(readlink -f $0))
 
@@ -35,13 +39,18 @@ done
 
 # default values
 branch_name=${branch_name:-$bod_database}
+# root branch will be used as reference branch
+root_branch="bod_master"
 git_repo="git@github.com:geoadmin/db.git"
 git_dir="$(pwd)/tmp"
+
+# sql queries, must have a valid choice of attributes for all bod stagings
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
-sql_catalog="SELECT json_agg(row) FROM (SELECT path,topic,category,bod_layer_id,selected_open,access,staging FROM re3.view_catalog order by path asc) as row"
+sql_catalog="SELECT json_agg(row) FROM (SELECT path,topic,category,bod_layer_id,selected_open,access,staging FROM re3.view_catalog order by bod_layer_id,bgdi_id asc) as row"
 sql_layers_js="SELECT json_agg(row) FROM (SELECT * FROM re3.view_layers_js order by bod_layer_id asc) as row"
-sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,tile_matrix_set_id,format,timestamp,sswmts,zoomlevel_min,zoomlevel_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id asc) as row"
+sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,tile_matrix_set_id,format,timestamp,sswmts,zoomlevel_min,zoomlevel_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
 sql_topics="select json_agg(row) FROM (SELECT topic, order_key, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
+
 COMMAND="${0##*/} $* (pid: $$)"
 
 # check for mandatory arguments source_objects and target have to be present if ArchiveMode is not set 
@@ -75,30 +84,61 @@ fi
 cd "${git_dir}/db"
 
 # checkout default branch
-git checkout prod
+git checkout prod 1>/dev/null
 
-# remove local branches bod_* which are not present on remote
 git branch --merged | grep "bod_*" | xargs -n 1 git branch -d
+git fetch --all --prune
 
-git checkout -B ${branch_name} 
-# continue on error when trying to pull changes if remote does not exists
-set +e
-git pull 2> /dev/null
-set -e
+generate_json() {
 [ -d bod_review ] || mkdir bod_review
 
 # json export
 # re3.view_bod_layer_info_de
-psql -h pg-0.dev.bgdi.ch -U www-data -d ${bod_database} -qAt -c "${sql_layer_info}" | python -m json.tool > bod_review/re3.view_bod_layer_info_de.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool > bod_review/re3.view_bod_layer_info_de.json
 # re3.view_catalog
-psql -h pg-0.dev.bgdi.ch -U www-data -d ${bod_database} -qAt -c "${sql_catalog}" | python -m json.tool > bod_review/re3.view_catalog.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool > bod_review/re3.view_catalog.json
 # re3.view_layers_js
-psql -h pg-0.dev.bgdi.ch -U www-data -d ${bod_database} -qAt -c "${sql_layers_js}" | python -m json.tool > bod_review/re3.view_layers_js.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layers_js}" | python -m json.tool > bod_review/re3.view_layers_js.json
 # re3.view_bod_wmts_getcapabilities_de
-psql -h pg-0.dev.bgdi.ch -U www-data -d ${bod_database} -qAt -c "${sql_wmtsgetcap}" | python -m json.tool > bod_review/re3.view_bod_wmts_getcapabilities_de.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool > bod_review/re3.view_bod_wmts_getcapabilities_de.json
 # re3.topics
-psql -h pg-0.dev.bgdi.ch -U www-data -d ${bod_database} -qAt -c "${sql_topics}" | python -m json.tool > bod_review/re3.topics.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool > bod_review/re3.topics.json    
+
+# continue on error when trying to pull changes if remote does not exists
+set +e
+git pull 2>/dev/null
+set -e
 
 git add .
 git commit -m "${COMMAND} by $(logname)"
-git push -f origin ${branch_name}
+git push -f origin $1
+} 
+
+initialize_root_branch() {
+echo "initializing ${root_branch} first..."
+git checkout --orphan ${root_branch}
+git rm . -rf 1>/dev/null
+generate_json ${root_branch}
+git checkout prod 1>/dev/null
+}
+
+# initialize root branch if it does not yet exists
+# root branch will be the root/default branch
+if [ ${branch_name} != "${root_branch}" ] && [ -z "$(git show-ref | grep -E "heads/${root_branch}|origin/${root_branch}")" ]; then
+    initialize_root_branch
+fi
+
+# check if remote branch exists
+if [[ "$(git show-ref | grep -E "heads/${branch_name}|origin/${branch_name}")" ]];then
+    git checkout ${branch_name}
+else
+    if [[ "$(git show-ref | grep -E "heads/${root_branch}|origin/${root_branch}")" ]];then
+        # create local branch referencing root branch
+        git checkout -b ${branch_name} ${root_branch}
+    else
+        initialize_root_branch
+        git checkout ${branch_name}
+    fi
+fi
+
+generate_json ${bod_database}
