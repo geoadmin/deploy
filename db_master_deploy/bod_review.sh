@@ -10,6 +10,7 @@
 # * create or update an equally named branch in github
 #
 set -e
+
 MY_DIR=$(dirname $(readlink -f $0))
 
 display_usage() {
@@ -86,7 +87,7 @@ cd "${git_dir}/db"
 # checkout default branch
 git checkout prod 1>/dev/null
 
-git branch --merged | grep "bod_*" | xargs -n 1 git branch -d
+git branch --merged | grep "bod_*" | xargs -r -n 1 git branch -d
 git fetch --all --prune
 
 generate_json() {
@@ -94,24 +95,24 @@ generate_json() {
 
 # json export
 # re3.view_bod_layer_info_de
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool > bod_review/re3.view_bod_layer_info_de.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_layer_info_de.json
 # re3.view_catalog
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool > bod_review/re3.view_catalog.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
 # re3.view_layers_js
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layers_js}" | python -m json.tool > bod_review/re3.view_layers_js.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layers_js}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js.json
 # re3.view_bod_wmts_getcapabilities_de
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool > bod_review/re3.view_bod_wmts_getcapabilities_de.json
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
 # re3.topics
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool > bod_review/re3.topics.json    
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json    
 
 # continue on error when trying to pull changes if remote does not exists
 set +e
 git pull 2>/dev/null
-set -e
 
 git add .
 git commit -m "${COMMAND} by $(logname)"
 git push -f origin $1
+set -e
 } 
 
 initialize_root_branch() {
@@ -124,17 +125,17 @@ git checkout prod 1>/dev/null
 
 # initialize root branch if it does not yet exists
 # root branch will be the root/default branch
-if [ ${branch_name} != "${root_branch}" ] && [ -z "$(git show-ref | grep -E "heads/${root_branch}|origin/${root_branch}")" ]; then
+if [ ${branch_name} != "${root_branch}" ] && [ -z "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]; then
     initialize_root_branch
 fi
 
 # check if remote branch exists
-if [[ "$(git show-ref | grep -E "heads/${branch_name}|origin/${branch_name}")" ]];then
+if [[ "$(git show-ref | grep -E "heads/${branch_name}$|origin/${branch_name}$")" ]];then
     git checkout ${branch_name}
 else
-    if [[ "$(git show-ref | grep -E "heads/${root_branch}|origin/${root_branch}")" ]];then
+    if [[ "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]];then
         # create local branch referencing root branch
-        git checkout -b ${branch_name} ${root_branch}
+        git checkout -b ${branch_name} origin/${root_branch}
     else
         initialize_root_branch
         git checkout ${branch_name}

@@ -185,6 +185,8 @@ bod_create_archive() {
             psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
             createdb -h localhost -O postgres --encoding 'UTF-8' -T ${source_db} ${archive_bod} >/dev/null
             psql -d template1 -h localhost -c "COMMENT ON DATABASE ${archive_bod} IS 'snapshot/archive copy from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
+            echo "bash bod_review.sh -d ${archive_bod} ..."
+            bash "${MY_DIR}/bod_review.sh" -d ${archive_bod} 1>&5 2>&6
             if [[ ! -z "${ArchiveMode}" ]]; then
                 # skip rest of loop if we are in pure archive mode (bod-only)
                 continue
@@ -261,6 +263,13 @@ copy_database() {
         psql -U pgkogis -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
+    fi
+    REGEX="^bod_"
+    if [[ ${source_db} =~ ${REGEX} ]]; then
+        echo "bash bod_review.sh -d ${source_db} ..."
+        bash "${MY_DIR}/bod_review.sh" -d ${source_db} 1>&5 2>&6
+        echo "bash bod_review.sh -d ${target_db} ..."
+        bash "${MY_DIR}/bod_review.sh" -d ${target_db} 1>&5 2>&6
     fi
 }
 
