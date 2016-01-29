@@ -45,12 +45,22 @@ root_branch="bod_master"
 git_repo="git@github.com:geoadmin/db.git"
 git_dir="$(pwd)/tmp"
 
+staging=""
+case "${bod_database}" in
+    *_int)
+        staging=" where staging not like 'test' "
+        ;;
+    *_prod)
+        staging=" where staging like 'prod' "
+        ;;
+esac
+
 # sql queries, must have a valid choice of attributes for all bod stagings
-sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
-sql_catalog="SELECT json_agg(row) FROM (SELECT path,topic,category,bod_layer_id,selected_open,access,staging FROM re3.view_catalog order by bod_layer_id,bgdi_id asc) as row"
-sql_layers_js="SELECT json_agg(row) FROM (SELECT * FROM re3.view_layers_js order by bod_layer_id asc) as row"
+sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de ${staging} order by bod_layer_id asc) as row"
+sql_catalog="SELECT json_agg(row) FROM (SELECT path,topic,category,bod_layer_id,selected_open,access,staging FROM re3.view_catalog ${staging} order by bod_layer_id,bgdi_id asc) as row"
+sql_layers_js="SELECT json_agg(row) FROM (SELECT * FROM re3.view_layers_js ${staging} order by bod_layer_id asc) as row"
 sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,tile_matrix_set_id,format,timestamp,sswmts,zoomlevel_min,zoomlevel_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
-sql_topics="select json_agg(row) FROM (SELECT topic, order_key, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
+sql_topics="select json_agg(row) FROM (SELECT topic, order_key, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics ${staging} order by topic asc) as row"
 
 COMMAND="${0##*/} $* (pid: $$)"
 
