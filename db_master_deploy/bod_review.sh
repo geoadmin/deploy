@@ -105,10 +105,14 @@ psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python 
 # re3.topics
 psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json    
 
+# continue on error when trying to pull changes if remote does not exists
+set +e
+git pull 2>/dev/null
+
 git add .
-# squash all commits to single commit
-git reset $(git commit-tree HEAD^{tree} -m "squashed to single commit: ${COMMAND} by $(logname)") 
+git commit -m "${COMMAND} by $(logname)"
 git push -f origin $1
+set -e
 } 
 
 initialize_root_branch() {
@@ -137,11 +141,5 @@ else
         git checkout ${branch_name}
     fi
 fi
-
-# continue on error when trying to pull changes if remote does not exists
-set +e
-# overwrite local changes with remote version
-git reset --hard origin/${branch_name} 2>/dev/null
-set -e
 
 generate_json ${bod_database}
