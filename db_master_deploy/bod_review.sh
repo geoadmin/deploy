@@ -105,14 +105,9 @@ psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python 
 # re3.topics
 psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json    
 
-# continue on error when trying to pull changes if remote does not exists
-set +e
-git pull 2>/dev/null
-
 git add .
 git commit -m "${COMMAND} by $(logname)"
 git push -f origin $1
-set -e
 } 
 
 initialize_root_branch() {
@@ -141,5 +136,11 @@ else
         git checkout ${branch_name}
     fi
 fi
+
+# replace with origin before updating json files
+# need this to be able to compare with github compare tool
+set +e
+git reset --hard origin/${root_branch} 2>/dev/null
+set -e
 
 generate_json ${bod_database}
