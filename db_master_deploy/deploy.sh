@@ -420,7 +420,7 @@ for source_object in "${array_source[@]}"; do
     array=()
 done
 
-attached_slaves=$(psql -qAt -h localhost -d postgres -c "select count(1) FROM pg_replication_slots where active=TRUE;")
+attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
 # loop through source_object values
 for source_object in "${array_source[@]}"; do
@@ -474,7 +474,7 @@ $(psql -qAt -h localhost -d template1 -c "SELECT pg_switch_xlog();" > /dev/null)
 MASTER_XLOG=$(psql -qAt -h localhost -d template1 -c "SELECT pg_current_xlog_location();")
 
 echo "master has been updated in $(format_milliseconds $((END-START))) to xlog position: ${MASTER_XLOG}"
-echo "waiting for ${attached_slaves} slaves to be pushed to xlog position ${MASTER_XLOG}..."
+echo "waiting for ${attached_slaves} slaves with ip pattern '${PUBLISHED_SLAVES}' to be pushed to xlog position ${MASTER_XLOG}..."
 
 # wait for all slaves until they have replayed the new xlog
 while :
@@ -490,7 +490,7 @@ do
     -t \
     --field-separator ' ' \
     --quiet \
-    -c "select count(1) as slaves, coalesce(sum(CASE WHEN diff >= 0 then diff ELSE NULL END)) as diff FROM ( SELECT pg_xlog_location_diff('${MASTER_XLOG}',replay_location) as diff from pg_stat_replication where state IN ('streaming')) sub;")
+    -c "select count(1) as slaves, coalesce(sum(CASE WHEN diff >= 0 then diff ELSE NULL END)) as diff FROM ( SELECT pg_xlog_location_diff('${MASTER_XLOG}',replay_location) as diff from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}' ) sub;")
 
     if [[ ${diff} -eq 0 ]]; then
         END_slaves=$(date +%s%3N)
