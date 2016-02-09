@@ -48,7 +48,7 @@ git_dir="$(pwd)/tmp"
 # sql queries, must have a valid choice of attributes for all bod stagings
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
 sql_catalog="SELECT json_agg(row) FROM (SELECT distinct topic,bod_layer_id,selected_open,staging FROM re3.view_catalog where bod_layer_id > '' order by 1,2 ) as row"
-sql_layers_js="SELECT json_agg(row) FROM (SELECT * FROM re3.view_layers_js order by bod_layer_id asc) as row"
+sql_layers_js="SELECT layer_id,row_to_json(t) as json FROM  (SELECT * FROM re3.view_layers_js order by layer_id asc) t"
 sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,tile_matrix_set_id,format,timestamp,sswmts,zoomlevel_min,zoomlevel_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
 sql_topics="select json_agg(row) FROM (SELECT topic, order_key, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
 
@@ -92,6 +92,7 @@ git fetch --all --prune
 
 generate_json() {
 [ -d bod_review ] || mkdir bod_review
+[ -d bod_review/re3.view_layers_js ] || mkdir bod_review/re3.view_layers_js
 
 # json export
 # re3.view_bod_layer_info_de
@@ -99,7 +100,11 @@ psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layer_info}" | python 
 # re3.view_catalog
 psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
 # re3.view_layers_js
-psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_layers_js}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js.json
+rm bod_review/re3.view_layers_js/*.json -rf
+psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
+    echo ${Record[1]} | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js/${Record[0]}.json
+done
+
 # re3.view_bod_wmts_getcapabilities_de
 psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
 # re3.topics
