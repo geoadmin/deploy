@@ -14,18 +14,18 @@ set -e
 MY_DIR=$(dirname $(readlink -f $0))
 
 display_usage() {
-    echo -e "Usage:\n$0 -d bod_database -b branch_name"
+    echo -e "Usage:\n$0 -d bod_database -t tag_name"
     echo -e "\t-d bod_database wich will be dumped as json"
-    echo -e "\t-b name of the branch - Optional. Default value is -b bod_database value'\n"
+    echo -e "\t-t name of the tag - Optional. Default value is -t bod_database value'\n"
 }
 
-while getopts ":d:b:" options; do
+while getopts ":d:t:" options; do
     case "${options}" in
         d)
             bod_database=${OPTARG}
             ;;
-        b)
-            branch_name=${OPTARG}
+        t)
+            tag_name=${OPTARG}
             ;;
         \? )
             display_usage
@@ -39,9 +39,9 @@ while getopts ":d:b:" options; do
 done
 
 # default values
-branch_name=${branch_name:-$bod_database}
+tag_name="tag_${tag_name:-$bod_database}"
 # root branch will be used as reference branch
-root_branch="bod_master"
+root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
 git_dir="$(pwd)/tmp"
 
@@ -112,8 +112,9 @@ psql -h pg-0.dev.bgdi.ch -U www-data -d $1 -qAt -c "${sql_topics}" | python -m j
 
 set +e
 git add .
-git commit -m "${COMMAND} by $(logname)"
-git push -f origin $1
+git commit -m "${COMMAND} tag: ${tag_name} by $(logname)"
+git tag ${tag_name} -f
+git push origin ${root_branch} --tags -f
 set -e
 } 
 
@@ -121,33 +122,17 @@ initialize_root_branch() {
 echo "initializing ${root_branch} first..."
 git checkout --orphan ${root_branch}
 git rm . -rf 1>/dev/null
-generate_json ${root_branch}
-git checkout prod 1>/dev/null
 }
 
 # initialize root branch if it does not yet exists
 # root branch will be the root/default branch
-if [ ${branch_name} != "${root_branch}" ] && [ -z "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]; then
+if [ -z "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]; then
     initialize_root_branch
 fi
 
-# check if remote branch exists
-if [[ "$(git show-ref | grep -E "heads/${branch_name}$|origin/${branch_name}$")" ]];then
-    git checkout ${branch_name}
-else
-    if [[ "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]];then
-        # create local branch referencing root branch
-        git checkout -b ${branch_name} origin/${root_branch}
-    else
-        initialize_root_branch
-        git checkout ${branch_name}
-    fi
+# switch branch if necessary
+if [ "$(git symbolic-ref -q --short HEAD)" != "${root_branch}" ]; then
+    git checkout ${root_branch}
 fi
-
-# replace with origin before updating json files
-# need this to be able to compare with github compare tool
-set +e
-git reset --hard origin/${root_branch} 2>/dev/null
-set -e
 
 generate_json ${bod_database}

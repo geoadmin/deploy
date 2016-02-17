@@ -268,10 +268,8 @@ copy_database() {
     if [[ ${source_db} =~ ${REGEX} ]]; then
         echo "bash bod_review.sh -d ${source_db} ..."
         bash "${MY_DIR}/bod_review.sh" -d ${source_db} 1>&5 2>&6
-        for review_db in bod_dev bod_int bod_prod; do
-            echo "bash bod_review.sh -d ${review_db} ..."
-            bash "${MY_DIR}/bod_review.sh" -d ${review_db} 1>&5 2>&6
-        done
+        echo "bash bod_review.sh -d ${target_db} ..."
+        bash "${MY_DIR}/bod_review.sh" -d ${target_db} 1>&5 2>&6
     fi
 }
 
