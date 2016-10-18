@@ -44,6 +44,7 @@ while getopts ":s:t:a:m:r:" options; do
 done
 
 source "${MY_DIR}/includes.sh"
+
 #######################################
 # pre-copy checks for tables
 # Globals:
@@ -370,6 +371,52 @@ copy_table() {
     fi
 }
 
+#######################################
+# check locks
+# Globals:
+#   array_source
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+check_locks() {
+    # check if there are any lock files for the source objects
+    for source_object in "${array_source[@]}"; do
+        lockfile="${MY_DIR}/tmp/${source_object}.lock"
+        if [ -f "${lockfile}" ]
+        then
+            echo "lock file has been found ${lockfile}" >&2
+            echo "${COMMAND} by user ${USER} has been stopped" >&2
+            exit 1
+        fi
+    done
+    # create lock files for all sources
+    for source_object in "${array_source[@]}"; do
+        lockfile="${MY_DIR}/tmp/${source_object}.lock"
+        cat << EOF >${lockfile}
+${source_object} locked with command ${COMMAND} by user ${USER}
+EOF
+    done
+}
+
+#######################################
+# clean locks
+# Globals:
+#   array_source
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+clean_locks() {
+    echo "cleaning lock files"
+    for source_object in "${array_source[@]}"; do
+        lockfile="${MY_DIR}/tmp/${source_object}.lock"
+        rm -rf ${lockfile} &> /dev/null
+    done
+}
+
 echo "start ${COMMAND}"
 CPUS=$(grep "processor" < /proc/cpuinfo | wc -l) || CPUS=1
 START=$(date +%s%3N)
@@ -421,6 +468,12 @@ for source_object in "${array_source[@]}"; do
 done
 
 attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
+
+# manual deploy will be creating a lock file in tmp/ directory for each deploy source
+if [[ ${comment} == "manual db deploy"  ]]; then
+    check_locks
+    trap clean_locks SIGHUP SIGINT SIGTERM INT TERM EXIT
+fi
 
 # loop through source_object values
 for source_object in "${array_source[@]}"; do

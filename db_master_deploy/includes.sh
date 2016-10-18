@@ -19,8 +19,6 @@ INFO="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - INFO"
 ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
-locktext="${0##*/} - [$$] locked by ${USER} ${COMMAND} @ $(date +"%F %T")"
-lockfile="/tmp/db_deploy.lock"
 
 # coloured output
 red='\e[0;31m'
