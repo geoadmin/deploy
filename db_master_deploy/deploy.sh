@@ -375,6 +375,7 @@ copy_table() {
 # check locks
 # Globals:
 #   array_source
+#   target
 # Arguments:
 #   None
 # Returns:
@@ -383,7 +384,7 @@ copy_table() {
 check_locks() {
     # check if there are any lock files for the source objects
     for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}.lock"
+        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
         if [ -f "${lockfile}" ]
         then
             echo "lock file has been found ${lockfile}" >&2
@@ -393,7 +394,7 @@ check_locks() {
     done
     # create lock files for all sources
     for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}.lock"
+        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
         cat << EOF >${lockfile}
 ${source_object} locked with command ${COMMAND} by user ${USER}
 EOF
@@ -404,6 +405,7 @@ EOF
 # clean locks
 # Globals:
 #   array_source
+#   target
 # Arguments:
 #   None
 # Returns:
@@ -412,7 +414,7 @@ EOF
 clean_locks() {
     echo "cleaning lock files"
     for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}.lock"
+        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
         rm -rf ${lockfile} &> /dev/null
     done
 }
@@ -472,7 +474,7 @@ attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg
 # manual deploy will be creating a lock file in tmp/ directory for each deploy source
 if [[ ${comment} == "manual db deploy"  ]]; then
     check_locks
-    trap clean_locks SIGHUP SIGINT SIGTERM INT TERM EXIT
+    trap clean_locks SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
 fi
 
 # loop through source_object values
