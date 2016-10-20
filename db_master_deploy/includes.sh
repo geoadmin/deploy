@@ -111,6 +111,10 @@ check_env() {
         source "${MY_DIR}/deploy.cfg"
     fi
 
+    # check for lock dir, create it if it does not exist
+    LOCK_DIR="${MY_DIR}/tmp.lock"
+    [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR}
+
     failed=false
     # DB superuser, set and not empty
     if [[ -z "${PGUSER}" ]]; then
