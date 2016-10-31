@@ -28,6 +28,7 @@ NC='\e[0m' # No Color
 
 # space delimited list of valid deploy targets, the target will be used as database suffix
 targets="dev int prod demo tile"
+targets_toposhop="dev int"
 
 #######################################
 # Logging

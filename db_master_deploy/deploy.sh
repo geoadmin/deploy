@@ -257,9 +257,9 @@ copy_database() {
     # add some metainformation to the copied database as comment
     psql -d template1 -h localhost -c "COMMENT ON DATABASE ${target_db} IS 'copied from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
 
-    # set database to read-only if it is not a _master or _demo database
+    # set database to read-only if it is not a _master or _demo database and if not toposhop reverse deploy
     REGEX="^(master|demo)$"
-    if [[ ! ${target} =~ ${REGEX} ]]; then
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" ]]; then
         psql -U pgkogis -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
@@ -384,9 +384,29 @@ fi
 # check for mandatory arguments source_objects and target have to be present if ArchiveMode is not set 
 if [[ -z "${source_objects}" || -z "${target}" ]]; then
     # if not in pure archive mode exit script
-    if [[ -z "${ArchiveMode}" ]]
-    then
+    if [[ -z "${ArchiveMode}" ]]; then
         echo "missing a required parameter (source_db -s and staging -t are required)" >&2
+        exit 1
+    fi
+fi
+
+# check if toposhop deploy toposhop_prod -> toposhop_dev or toposhop_prod -> toposhop_int
+if [[ "${source_objects}" =~ toposhop_ ]]; then
+    # check deploy targets, only dev and int target is allowed
+    if [[ ! ${targets_toposhop} =~ ${target} ]]; then
+        echo "valid toposhop deploy targets are: '${targets_toposhop}'" >&2
+        exit 1
+    fi
+    # toposhop source has to be toposhop_prod
+    if [[ ! ${source_objects} =~ ^toposhop_prod$ ]]; then
+        echo "toposhop deploy source has to be whole database toposhop_prod'" >&2
+        exit 1
+    fi
+    ToposhopMode=true
+else
+    # check if we have a valid standard deploy target
+    if [[ ! ${targets} =~ ${target} ]]; then
+        echo "valid standard deploy targets are: '${targets}'" >&2
         exit 1
     fi
 fi
@@ -394,12 +414,6 @@ fi
 # check if refresh materialized view switch is either true or false
 if [[ ! "${refreshmatviews}" =~ ^(true|false)$ ]]; then
     echo "wrong parameter -r ${refreshmatviews} , should be true or false" >&2
-    exit 1
-fi
-
-# check if we have a valid target
-if [[ ! ${targets} == *${target}* ]]; then
-    echo "valid deploy targets are: '${targets}'" >&2
     exit 1
 fi
 
@@ -503,10 +517,9 @@ done
 source_db=$(IFS=, ; echo "${array_source_db[*]}")
 target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 
-# fire dml trigger in sub shell
+# fire dml and ddl trigger in sub shell if not in ArchiveMode or ToposhopDeploy Mode
 # redirect customized stdout and stderr to standard ones
-if [[ -z "${ArchiveMode}" ]]
-then
+if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
     (
     [[ ! ${target} == tile ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
     )
