@@ -161,43 +161,6 @@ update_materialized_views() {
 }
 
 #######################################
-# create archive/snapshot copy of bod
-# Globals:
-#   source_db
-#   timestamp
-# Arguments:
-#   None
-# Returns:
-#   None
-#######################################
-bod_create_archive() {
-    #BOD archiving
-    if [[ ${source_db%_*} == bod ]]; then
-        if [[ ${#timestamp} > 0 ]]; then
-            if [[ ! ${timestamp} =~ (^[a-zA-Z0-9]+$)  ]]; then
-                echo "timestamp must match the pattern [a-zA-Z0-9]+"  >&2
-                exit 1
-            fi             
-            archive_bod="${source_db}${timestamp}"
-            echo "Archiving ${source_db} as ${archive_bod}..."
-            psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${archive_bod}';" >/dev/null
-            dropdb -h localhost --if-exists ${archive_bod} &> /dev/null 
-            psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
-            createdb -h localhost -O postgres --encoding 'UTF-8' -T ${source_db} ${archive_bod} >/dev/null
-            psql -d template1 -h localhost -c "COMMENT ON DATABASE ${archive_bod} IS 'snapshot/archive copy from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
-            echo "bash bod_review.sh -d ${archive_bod} ..."
-            bash "${MY_DIR}/bod_review.sh" -d ${archive_bod} 1>&5 2>&6
-            if [[ ! -z "${ArchiveMode}" ]]; then
-                # skip rest of loop if we are in pure archive mode (bod-only)
-                continue
-            fi
-        else
-            echo "Not archiving"
-        fi  
-    fi
-}
-
-#######################################
 # pre-copy checks for source and target objects
 # Globals:
 #   target
@@ -233,7 +196,6 @@ check_source() {
 #   source_db
 #   target_db
 #   target_db_tmp
-#   attached_slaves
 # Arguments:
 #   None
 # Returns:
@@ -242,7 +204,7 @@ check_source() {
 copy_database() {
     size=$(psql -qAt -h localhost -d ${source_db} -c "SELECT pg_size_pretty(pg_database_size('"${source_db}"'));")
     
-    echo "copy ${source_db} to ${target_db} size: ${size} attached slaves: ${attached_slaves}"
+    echo "copy ${source_db} to ${target_db} size: ${size}"
     echo "creating temporary database ${target_db_tmp} ..."
     psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db_tmp}';" >/dev/null
     dropdb -h localhost --if-exists ${target_db_tmp} &> /dev/null
@@ -264,13 +226,6 @@ copy_database() {
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
     fi
-    REGEX="^bod_"
-    if [[ ${source_db} =~ ${REGEX} ]]; then
-        echo "bash bod_review.sh -d ${source_db} ..."
-        bash "${MY_DIR}/bod_review.sh" -d ${source_db} 1>&5 2>&6
-        echo "bash bod_review.sh -d ${target_db} ..."
-        bash "${MY_DIR}/bod_review.sh" -d ${target_db} 1>&5 2>&6
-    fi
 }
 
 #######################################
@@ -284,7 +239,6 @@ copy_database() {
 #   target_schema
 #   target_table
 #   target_id
-#   attached_slaves
 # Arguments:
 #   None
 # Returns:
@@ -312,7 +266,7 @@ copy_table() {
         jobs=1
         increment=${rows}
     fi
-    echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}" 
+    echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size}" 
 
     echo "drop indexes on ${target_id}"
     (pg_dump -h localhost --if-exists -c -t ${source_schema}.${source_table} -s ${source_db} 2>/dev/null | egrep "\bDROP INDEX\b" | psql -d "${target_db}" -h localhost 2>/dev/null ) || true
@@ -434,7 +388,6 @@ for source_object in "${array_source[@]}"; do
     array=()
 done
 
-attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
 # loop through source_object values
 for source_object in "${array_source[@]}"; do
@@ -469,7 +422,6 @@ for source_object in "${array_source[@]}"; do
         check_database
         check_source
         update_materialized_views database
-        bod_create_archive
         copy_database        
     fi
 done
@@ -482,56 +434,11 @@ if [ "${#array_matviews[@]}" -gt "0" ]; then
     update_materialized_views table_commit
 fi
 
-# create new xlog position
-$(psql -qAt -h localhost -d template1 -c "SELECT pg_switch_xlog();" > /dev/null)
-# read new xlog position
-MASTER_XLOG=$(psql -qAt -h localhost -d template1 -c "SELECT pg_current_xlog_location();")
-
-echo "master has been updated in $(format_milliseconds $((END-START))) to xlog position: ${MASTER_XLOG}"
-echo "waiting for ${attached_slaves} slaves with ip pattern '${PUBLISHED_SLAVES}' to be pushed to xlog position ${MASTER_XLOG}..."
-
-# wait for all slaves until they have replayed the new xlog
-while :
-do
-    diff=999
-    read slaves diff <<< $(psql \
-    -X \
-    -h localhost \
-    -d postgres \
-    --single-transaction \
-    --set ON_ERROR_STOP=on \
-    --no-align \
-    -t \
-    --field-separator ' ' \
-    --quiet \
-    -c "select count(1) as slaves, coalesce(sum(CASE WHEN diff >= 0 then diff ELSE NULL END)) as diff FROM ( SELECT pg_xlog_location_diff('${MASTER_XLOG}',replay_location) as diff from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}' ) sub;")
-
-    if [[ ${diff} -eq 0 ]]; then
-        END_slaves=$(date +%s%3N)
-        echo "${slaves} slaves have been updated in $(format_milliseconds $((END_slaves-END))) to xlog position: ${MASTER_XLOG}"
-        break
-    fi
-done
+echo "master has been updated in $(format_milliseconds $((END-START)))"
 
 # concatenate arrays for dml and ddl trigger
 source_db=$(IFS=, ; echo "${array_source_db[*]}")
 target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
-
-# fire dml and ddl trigger in sub shell if not in ArchiveMode or ToposhopDeploy Mode
-# redirect customized stdout and stderr to standard ones
-if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
-    (
-    [[ ! ${target} == tile ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
-    )
-    if [ "${#array_target_db[@]}" -gt "0" ]
-    then
-        # fire ddl trigger in sub shell
-        # redirect customized stdout and stderr to standard ones    
-        (
-        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s ${source_db} -t ${target} 1>&5 2>&6
-        )   
-    fi
-fi
 
 END_trigger=$(date +%s%3N)
 echo "finished ${COMMAND} in $(format_milliseconds $((END_trigger-START)))"
