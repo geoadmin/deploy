@@ -120,33 +120,6 @@ check_env() {
         echo 'export env variable containing DB Superuser name: $ export PGUSER=xxx' >&2
         failed=true
     fi
-    # SPHINX DEV, set and not empty
-    if [[ -z "${SPHINX_DEV}" ]]; then
-        echo 'export env variable containing SPHINX DEV ip address (space delimiter): $ export SPHINX_DEV="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # SPHINX INT, set and not empty
-    if [[ -z "${SPHINX_INT}" ]]; then
-        echo 'export env variable containing SPHINX INT ip address (space delimiter): $ export SPHINX_INT="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # SPHINX PROD, set and not empty
-    if [[ -z "${SPHINX_PROD}" ]]; then
-        echo 'export env variable containing SPHINX PROD ip address (space delimiter): $ export SPHINX_PROD="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi   
-    # SPHINX DEMO, has to be set, can be empty
-    if [[ -z "${SPHINX_DEMO}" ]]; then
-        echo 'export env variable containing SPHINX DEMO ip address (space delimiter): $ export SPHINX_DEMO="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # PUBLISHED SLAVES set to default value if empty
-    # pipe delimited list of published slaves ips p.e. "ip1|ip2|ip3"
-    # the deploy script will wait for these slaves to by in-sync before starting the dml (sphinx) trigger
-    # normally these list should contain the ip's behind pg-sandbox.bgdi.ch and pg.bgdi.ch, default value is '.*' = all slaves
-    if [[ -z "${PUBLISHED_SLAVES}" ]];then
-        PUBLISHED_SLAVES='.*'
-    fi
     if [[ "${failed}" = true ]];then
         echo "you can set the variables in ${MY_DIR}/deploy.cfg" 
         exit 1
@@ -155,10 +128,3 @@ check_env() {
 
 # check for env variables
 check_env
-
-# force geodata
-if [[ $(whoami) != "geodata" ]]; 
-then 
-    echo "This script must be run as geodata!" >&2
-    exit 1
-fi
