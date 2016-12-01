@@ -391,15 +391,10 @@ if [[ -z "${source_objects}" || -z "${target}" ]]; then
 fi
 
 # check if toposhop deploy toposhop_prod -> toposhop_dev or toposhop_prod -> toposhop_int
-if [[ "${source_objects}" =~ toposhop_ ]]; then
+if [[ "${source_objects}" =~ ^toposhop_prod$ ]]; then
     # check deploy targets, only dev and int target is allowed
     if [[ ! ${targets_toposhop} =~ ${target} ]]; then
         echo "valid toposhop deploy targets are: '${targets_toposhop}'" >&2
-        exit 1
-    fi
-    # toposhop source has to be toposhop_prod
-    if [[ ! ${source_objects} =~ ^toposhop_prod$ ]]; then
-        echo "toposhop deploy source has to be whole database toposhop_prod'" >&2
         exit 1
     fi
     ToposhopMode=true
