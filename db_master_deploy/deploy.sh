@@ -247,7 +247,13 @@ copy_database() {
     psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db_tmp}';" >/dev/null
     dropdb -h localhost --if-exists ${target_db_tmp} &> /dev/null
     psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
-    createdb -h localhost -O postgres --encoding 'UTF-8' -T ${source_db} ${target_db_tmp} >/dev/null
+
+    # toposhop db's have to be created with owner swisstopo
+    if [[ -z "${ToposhopMode}" ]]; then
+        createdb -h localhost -O postgres --encoding 'UTF-8' -T ${source_db} ${target_db_tmp} >/dev/null
+    else
+        createdb -h localhost -O swisstopo --encoding 'UTF-8' -T ${source_db} ${target_db_tmp} >/dev/null
+    fi
 
     echo "replacing ${target_db} with ${target_db_tmp} ..."
     psql -h localhost -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db}';" >/dev/null
