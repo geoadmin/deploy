@@ -69,6 +69,17 @@ Deploy bod to integration:
 $ bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t int
 ```
 
+####materialized views
+materialized views are updated by default during:
+* database deploy - before the deploy begins in the source database
+* table deploy - after the deploy in the target database
+
+you can deactivate the materialized view update with the optional parameter ``-r false``  
+
+```bash
+$ bash deploy.sh -s stopo_master.tlm.strasse -t int -r false
+```
+
 ####bod archive
 Create an archive/snapshot of the BOD:
 ```bash
