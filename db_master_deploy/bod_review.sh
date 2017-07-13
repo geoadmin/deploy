@@ -50,7 +50,7 @@ sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bo
 sql_catalog="SELECT json_agg(row) FROM (SELECT distinct topic,bod_layer_id,selected_open,staging FROM re3.view_catalog where bod_layer_id > '' order by 1,2 ) as row"
 sql_layers_js="SELECT layer_id,row_to_json(t) as json FROM  (SELECT * FROM re3.view_layers_js order by layer_id asc) t"
 sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,tile_matrix_set_id,format,timestamp,sswmts,zoomlevel_min,zoomlevel_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
-sql_topics="select json_agg(row) FROM (SELECT topic, order_key, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
+sql_topics="select json_agg(row) FROM (SELECT topic, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
 
 COMMAND="${0##*/} $* (pid: $$)"
 
