@@ -372,51 +372,49 @@ copy_table() {
 }
 
 #######################################
-# check locks
+# write lock
 # Globals:
-#   array_source
-#   target
+#   target_db
+#   COMMAND
+#   USER
 # Arguments:
 #   None
 # Returns:
 #   None
 #######################################
-check_locks() {
-    # check if there are any lock files for the source objects
-    for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
-        if [ -f "${lockfile}" ]
-        then
-            echo "lock file has been found ${lockfile}" >&2
-            echo "${COMMAND} by user ${USER} has been stopped" >&2
-            exit 1
-        fi
+write_lock() {
+    local lockfile="${LOCK_DIR}/${target_db}.lock"
+    # if target db is locked enter loop and wait for lockfile
+    until [ ! -f ${lockfile} ]
+    do
+        echo "target db ${target_db} is locked, waiting for deploy process to finish"
+        sleep 5
     done
-    # create lock files for all sources
-    for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
-        cat << EOF >${lockfile}
-${source_object} locked with command ${COMMAND} by user ${USER}
+
+    # create lock files for target db
+    cat << EOF >${lockfile}
+${target_db} locked with command ${COMMAND} by user ${USER}
 EOF
-    done
+    trap remove_lock SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
 }
 
 #######################################
-# clean locks
+# remove lock
 # Globals:
-#   array_source
-#   target
+#   target_db
+#   COMMAND
+#   USER
 # Arguments:
 #   None
 # Returns:
 #   None
 #######################################
-clean_locks() {
-    echo "cleaning lock files"
-    for source_object in "${array_source[@]}"; do
-        lockfile="${LOCK_DIR}/${source_object}_${target}.lock"
-        rm -rf ${lockfile} &> /dev/null
-    done
+remove_lock() {
+    local lockfile="${LOCK_DIR}/${target_db}.lock"
+    echo "cleaning lock file ${lockfile}"
+    rm -rf ${lockfile} &> /dev/null
+    # reset trap
+    trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
 }
 
 echo "start ${COMMAND}"
@@ -471,12 +469,6 @@ done
 
 attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
-# manual deploy will be creating a lock file in tmp/ directory for each deploy source
-if [[ ${comment} == "manual db deploy"  ]]; then
-    check_locks
-    trap clean_locks SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
-fi
-
 # loop through source_object values
 for source_object in "${array_source[@]}"; do
     array=(${source_object//./ })
@@ -495,8 +487,10 @@ for source_object in "${array_source[@]}"; do
         array_source_table+=(${source_object})
         array_target_combined+=(${target_id})
         check_table
+        write_lock
         check_source
         copy_table
+        remove_lock
     fi
     # databases go here
     if [ "${#array[@]}" -eq "1" ]; then
@@ -509,9 +503,11 @@ for source_object in "${array_source[@]}"; do
         array_target_combined+=(${target_db})
         check_database
         check_source
+        write_lock
         update_materialized_views database
         bod_create_archive
-        copy_database        
+        copy_database
+        remove_lock
     fi
 done
 
