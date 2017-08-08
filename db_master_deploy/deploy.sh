@@ -384,11 +384,15 @@ copy_table() {
 #######################################
 write_lock() {
     local lockfile="${LOCK_DIR}/${target_db}.lock"
+    local timeout=3600  # max retry interval in seconds
+    local counter=0
+    local increment=5   # check every n seconds
     # if target db is locked enter loop and wait for lockfile
-    until [ ! -f ${lockfile} ]
+    until [ ! -f "${lockfile}" ] || [ "${counter}" -gt "${timeout}" ]
     do
-        echo "target db ${target_db} is locked, waiting for deploy process to finish"
-        sleep 5
+        echo "target db ${target_db} is locked, waiting for deploy process to finish (${counter}/${timeout}) ..."
+        sleep ${increment}
+        (( counter += increment ))
     done
 
     # create lock files for target db
