@@ -44,6 +44,7 @@ while getopts ":s:t:a:m:r:" options; do
 done
 
 source "${MY_DIR}/includes.sh"
+
 #######################################
 # pre-copy checks for tables
 # Globals:
@@ -376,6 +377,56 @@ copy_table() {
     fi
 }
 
+#######################################
+# write lock
+# Globals:
+#   target_db
+#   COMMAND
+#   USER
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+write_lock() {
+    local lockfile="${LOCK_DIR}/${target_db}.lock"
+    local timeout=3600  # max retry interval in seconds
+    local counter=0
+    local increment=5   # check every n seconds
+    # if target db is locked enter loop and wait for lockfile
+    until [ ! -f "${lockfile}" ] || [ "${counter}" -gt "${timeout}" ]
+    do
+        echo "target db ${target_db} is locked, waiting for deploy process to finish (${counter}/${timeout}) ..."
+        sleep ${increment}
+        (( counter += increment ))
+    done
+
+    # create lock files for target db
+    cat << EOF >${lockfile}
+${target_db} locked with command ${COMMAND} by user ${USER}
+EOF
+    trap remove_lock SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
+}
+
+#######################################
+# remove lock
+# Globals:
+#   target_db
+#   COMMAND
+#   USER
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+remove_lock() {
+    local lockfile="${LOCK_DIR}/${target_db}.lock"
+    echo "cleaning lock file ${lockfile}"
+    rm -rf ${lockfile} &> /dev/null
+    # reset trap
+    trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
+}
+
 echo "start ${COMMAND}"
 CPUS=$(grep "processor" < /proc/cpuinfo | wc -l) || CPUS=1
 START=$(date +%s%3N)
@@ -455,8 +506,10 @@ for source_object in "${array_source[@]}"; do
         array_source_table+=(${source_object})
         array_target_combined+=(${target_id})
         check_table
+        write_lock
         check_source
         copy_table
+        remove_lock
     fi
     # databases go here
     if [ "${#array[@]}" -eq "1" ]; then
@@ -469,9 +522,11 @@ for source_object in "${array_source[@]}"; do
         array_target_combined+=(${target_db})
         check_database
         check_source
+        write_lock
         update_materialized_views database
         bod_create_archive
-        copy_database        
+        copy_database
+        remove_lock
     fi
 done
 
