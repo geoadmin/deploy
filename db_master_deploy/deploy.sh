@@ -306,7 +306,7 @@ copy_table() {
     JOIN   pg_attribute a ON a.attrelid = i.indrelid
                          AND a.attnum = ANY(i.indkey)
     WHERE  i.indrelid = '${source_schema}.${source_table}'::regclass
-    AND    i.indisprimary;
+    AND    (i.indisprimary OR i.indisunique);
     "
     primary_keys=$(psql -qAt -h localhost -d ${source_db} -c "${primary_keys_sql}")
 
