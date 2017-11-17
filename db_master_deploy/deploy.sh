@@ -12,13 +12,15 @@ display_usage() {
     echo -e "\t-s comma delimited list of source databases and/or tables - mandatory"
     echo -e "\t-t target staging - mandatory choose one of 'dev int prod demo tile'"
     echo -e "\t-r refresh materialized views true|false - Optional, default: true'"
+    echo -e "\t-d refresh sphinx indexes true|false - Optional, default: true'"
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
 
 # default values
 refreshmatviews=true
+refreshsphinx=true
 
-while getopts ":s:t:a:m:r:" options; do
+while getopts ":s:t:a:m:r:d:" options; do
     case "${options}" in
         s)
             source_objects=${OPTARG}
@@ -35,6 +37,9 @@ while getopts ":s:t:a:m:r:" options; do
             ;;
         r)
             refreshmatviews=${OPTARG}
+            ;;
+        d)
+            refreshsphinx=${OPTARG}
             ;;
         *)
             display_usage
@@ -469,6 +474,12 @@ if [[ ! "${refreshmatviews}" =~ ^(true|false)$ ]]; then
     exit 1
 fi
 
+# check if sphinx index switch is either true or false
+if [[ ! "${refreshsphinx}" =~ ^(true|false)$ ]]; then
+    echo "wrong parameter -r ${refreshsphinx} , should be true or false" >&2
+    exit 1
+fi
+
 # check db access
 if [[ -z $(psql -lqt -h localhost) ]]; then
     echo "Unable to connect to database cluster" >&2
@@ -577,7 +588,7 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 # redirect customized stdout and stderr to standard ones
 if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
     (
-    [[ ! ${target} == tile ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
+    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s ${target_combined} -t ${target} 1>&5 2>&6
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
