@@ -43,7 +43,7 @@ tag_name="tag_${tag_name:-$bod_database}"
 # root branch will be used as reference branch
 root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
-git_dir="$(pwd)/tmp"
+git_dir="${MY_DIR}/tmp"
 
 # sql queries, must have a valid choice of attributes for all bod stagings
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
