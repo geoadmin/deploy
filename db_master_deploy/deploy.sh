@@ -377,7 +377,7 @@ copy_table() {
 
     # set database to read-only if it is not a _master or _demo database
     REGEX="^(master|demo)$"
-    if [[ ! ${target} =~ ${REGEX} ]]; then
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" ]]; then
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     fi
 }
@@ -432,6 +432,35 @@ remove_lock() {
     trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
 }
 
+#######################################
+# check if toposhop deploy
+# Globals:
+#   target
+# Arguments:
+#   source_db
+# Returns:
+#   ToposhopMode (true|unset)
+#######################################
+check_toposhop() {
+    local source_db=$1
+    # check if toposhop deploy toposhop_prod -> toposhop_dev or toposhop_prod -> toposhop_int
+    if [[ "${source_db}" =~ ^toposhop_prod$ ]]; then
+        # check deploy targets, only dev and int target is allowed
+        if [[ ! ${targets_toposhop} =~ ${target} ]]; then
+            echo "valid toposhop deploy targets are: '${targets_toposhop}'" >&2
+            exit 1
+        fi
+        ToposhopMode=true
+    else
+        # check if we have a valid standard deploy target
+        if [[ ! ${targets} =~ ${target} ]]; then
+            echo "valid standard deploy targets are: '${targets}'" >&2
+            exit 1
+        fi
+        unset ${ToposhopMode} &> /dev/null || :
+    fi
+}
+
 echo "start ${COMMAND}"
 CPUS=$(grep "processor" < /proc/cpuinfo | wc -l) || CPUS=1
 START=$(date +%s%3N)
@@ -448,22 +477,6 @@ if [[ -z "${source_objects}" || -z "${target}" ]]; then
     # if not in pure archive mode exit script
     if [[ -z "${ArchiveMode}" ]]; then
         echo "missing a required parameter (source_db -s and staging -t are required)" >&2
-        exit 1
-    fi
-fi
-
-# check if toposhop deploy toposhop_prod -> toposhop_dev or toposhop_prod -> toposhop_int
-if [[ "${source_objects}" =~ ^toposhop_prod$ ]]; then
-    # check deploy targets, only dev and int target is allowed
-    if [[ ! ${targets_toposhop} =~ ${target} ]]; then
-        echo "valid toposhop deploy targets are: '${targets_toposhop}'" >&2
-        exit 1
-    fi
-    ToposhopMode=true
-else
-    # check if we have a valid standard deploy target
-    if [[ ! ${targets} =~ ${target} ]]; then
-        echo "valid standard deploy targets are: '${targets}'" >&2
         exit 1
     fi
 fi
@@ -516,6 +529,7 @@ for source_object in "${array_source[@]}"; do
         array_target_table+=(${target_id})
         array_source_table+=(${source_object})
         array_target_combined+=(${target_id})
+        check_toposhop ${source_db}
         check_table
         write_lock
         check_source
@@ -531,6 +545,7 @@ for source_object in "${array_source[@]}"; do
         array_target_db+=(${target_db})
         array_source_db+=(${source_object})
         array_target_combined+=(${target_db})
+        check_toposhop ${source_db}
         check_database
         check_source
         write_lock
