@@ -49,7 +49,7 @@ git_dir="${MY_DIR}/tmp"
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
 sql_catalog="SELECT json_agg(row) FROM (SELECT distinct topic,bod_layer_id,selected_open,staging FROM re3.view_catalog where bod_layer_id > '' order by 1,2 ) as row"
 sql_layers_js="SELECT layer_id,row_to_json(t) as json FROM  (SELECT * FROM re3.view_layers_js order by layer_id asc) t"
-sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,format,timestamp,sswmts,resolution_min,resolution_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
+sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,format,timestamp,resolution_min,resolution_max,topics,chargeable,staging FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
 sql_topics="select json_agg(row) FROM (SELECT topic, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
 
 COMMAND="${0##*/} $* (pid: $$)"
