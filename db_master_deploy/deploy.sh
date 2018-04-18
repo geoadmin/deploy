@@ -540,7 +540,8 @@ for source_object in "${array_source[@]}"; do
     if [ "${#array[@]}" -eq "1" ]; then
         echo "processing database ${source_object}..."        
         source_db=${array[0]}
-        target_db="${source_db%_*}_${target}"
+        # if we have a bod ArchiveMode Deploy target is empty, create a lock file with the timestamp as suffix instead of deploy target
+        target_db="${source_db%_*}_${target:-${timestamp}}"
         target_db_tmp="${target_db}_tmp_deploy"
         array_target_db+=(${target_db})
         array_source_db+=(${source_object})
