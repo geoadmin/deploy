@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -Ee
 set -o pipefail
 USER=$(logname) # get user behind sudo su - 
 

@@ -410,7 +410,7 @@ write_lock() {
     cat << EOF >${lockfile}
 ${target_db} locked with command ${COMMAND} by user ${USER}
 EOF
-    trap remove_lock SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
+    trap remove_lock SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT ERR
 }
 
 #######################################
@@ -429,7 +429,7 @@ remove_lock() {
     echo "cleaning lock file ${lockfile}"
     rm -rf ${lockfile} &> /dev/null
     # reset trap
-    trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT
+    trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT ERR
 }
 
 #######################################
