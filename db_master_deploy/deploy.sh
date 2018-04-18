@@ -401,7 +401,7 @@ write_lock() {
     # if target db is locked enter loop and wait for lockfile
     until [ ! -f "${lockfile}" ] || [ "${counter}" -gt "${timeout}" ]
     do
-        echo "target db ${target_db} is locked, waiting for deploy process to finish (${counter}/${timeout}) ..."
+        echo "target db ${target_db} is locked ("${lockfile}"), waiting for deploy process to finish (${counter}/${timeout}) ..."
         sleep ${increment}
         (( counter += increment ))
     done
