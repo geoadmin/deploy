@@ -83,8 +83,7 @@ echo "db pattern: ${tables}"
 for sphinx in ${SPHINX}
 do
     echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
-    ssh -T ${sphinx} /bin/bash << bla
-        sudo su - sphinxsearch  << "HERE"
+    ssh -T ${sphinx} /bin/bash << HERE
             if [ -f ${SPHINX_CONFIG} ]; then
                 for table in ${tables}
                 do
@@ -97,7 +96,9 @@ do
                 then
                     echo "Sphinx Service is not running on host ${sphinx}" >&2
                     echo "starting sphinx service"
-                    /etc/init.d/sphinxsearch start | grep -i "WARNING\|ERROR"
+                    sudo -u root systemctl stop sphinxsearch
+                    sleep 5
+                    sudo -u root systemctl start sphinxsearch
                 fi
                 echo -e "sphinx service is running with process id: \$(pgrep searchd)"
             else
@@ -105,7 +106,6 @@ do
                 exit 1
             fi
 HERE
-bla
 done
 END_DML=$(date +%s%3N)
 echo "finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
