@@ -92,7 +92,7 @@ do
                 done
                 sleep 2
                 # check service status, if not running start service
-                if  ! pgrep searchd > /dev/null
+                if  ! searchd --status  > /dev/null
                 then
                     echo "Sphinx Service is not running on host ${sphinx}" >&2
                     echo "starting sphinx service"
@@ -101,6 +101,7 @@ do
                     sudo -u root systemctl start sphinxsearch
                 fi
                 echo -e "sphinx service is running with process id: \$(pgrep searchd)"
+                searchd --status
             else
                 echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
                 exit 1
