@@ -94,14 +94,13 @@ do
                 # check service status, if not running start service
                 if  ! searchd --status  > /dev/null
                 then
-                    echo "Sphinx Service is not running on host ${sphinx}" >&2
-                    echo "starting sphinx service"
+                    echo "sphinx service was not running, trying to start sphinx service on host ${sphinx}"
                     sudo -u root systemctl stop sphinxsearch
                     sleep 5
                     sudo -u root systemctl start sphinxsearch
                 fi
-                echo -e "sphinx service is running with process id: \$(pgrep searchd)"
-                searchd --status
+                echo "sphinx service status on host ${sphinx}:"
+                searchd --status || { echo "Sphinx Service is not running on host ${sphinx}" >&2; exit 1; }
             else
                 echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
                 exit 1
