@@ -36,6 +36,13 @@ Normally we are deploying from a _master datasource to one of these targets. If 
 Table copy is performance optimized sql copy from stdout to stdin. 
 The job will be using all the available cores by splitting up the table into  parts with equal number of rows, indexes and constraints will be removed before writing the table and re-created afterwards.
 
+In the deploy script examples below we're always using the _master as source database. The deploy chain should be:
+```bash
+_master -> _dev
+_dev -> _int
+_int -> _prod
+```
+
 Depending on the composition of the source_object parameter and the other parameters the script can be executed in the following modes:
 
 #### table-copy
