@@ -221,11 +221,11 @@ check_source() {
         exit 1
     fi
     
-    #check if master is the source and, if not, ask for confirmation
+    #check if master is the source and, if not, ask for confirmation but only once
     if [[ ! ${source_db} == *_master ]]; then
         echo -n "Master is not the selected source. Do you want to continue? (y/n)"
         echo
-        read answer
+        [ ${answer+x} ] || read answer
         if [ ! "${answer}" == "y" ]; then
             echo "deploy aborted"
             exit 1
