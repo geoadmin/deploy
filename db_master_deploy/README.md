@@ -25,8 +25,6 @@ DB Suffix    | Meaning
 **_dev**   | development copy of _master database  | 
 **_int**   | integration copy of _master database | 
 **_prod**  | production copy of _master database  | 
-**_demo** |  demo copy of _master database, used for demo instances |
-**_tile** |  tile copy of _master database, used for tile generation |
 **_``[a-zA-Z0-9]``+** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
 
 ### copy databases and or tables (deploy.sh)
@@ -47,7 +45,7 @@ Depending on the composition of the source_object parameter and the other parame
 
 #### table-copy
 ```bash
-$ bash deploy.sh -s stopo_master.tlm.strasse -t int
+$ bash deploy.sh -s stopo_dev.tlm.strasse -t int
 ```
 ```bash
 $ bash deploy.sh -s stopo_master.public.grid_ta25,bafu_master.prtr.swissprtr -t dev
@@ -57,23 +55,23 @@ The script fires the sphinx trigger script dml_trigger.sh
 Database copy is is an optimized version of ``createdb -T source_db``.
 
 #### database-copy 
-Deploy bod to integration:
+Deploy bod from dev to integration:
 ```bash
-$ bash deploy.sh -s bod_master -t int
+$ bash deploy.sh -s bod_dev -t int
 ```
-Deploy bod to production and make an archive copy, the script will create a new database named: ``bod_master20150315``
+Deploy bod from integration to production and make an archive copy, the script will create a new database named: ``bod_master20150315``
 ```
-$ bash deploy.sh -s bod_master -t prod -a 20150315
+$ bash deploy.sh -s bod_int -t prod -a 20150315
 ```
-Deploy bafu and stopo to production
+Deploy bafu and stopo from integration to production
 ```bash
-$ bash deploy.sh -s stopo_master,bafu_master -t prod
+$ bash deploy.sh -s stopo_int,bafu_int -t prod
 ```
 
 #### mixed copy database/table
 Deploy bod to integration:
 ```bash
-$ bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t int
+$ bash deploy.sh -s bod_dev,stopo_dev.tlm.strasse -t int
 ```
 
 #### materialized views
@@ -84,7 +82,7 @@ materialized views are updated by default during:
 you can deactivate the materialized view update with the optional parameter ``-r false``  
 
 ```bash
-$ bash deploy.sh -s stopo_master.tlm.strasse -t int -r false
+$ bash deploy.sh -s stopo_dev.tlm.strasse -t int -r false
 ```
 
 #### bod archive
@@ -114,29 +112,29 @@ The deploy.sh script fires the github trigger script ddl_trigger.sh for database
           +--------------+     |           |    bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t dev |
           |              |     |           |                                                                 |
           |              |     |           |                                                                 |
-          |              |     |           | B: deploy from master to int                                    |
-+-------> |    _int      +-----+           |    bash deploy.sh -s bod_master,stopo_master.tlm.strasse -t int |
+          |              |     |           | B: deploy from dev to int                                       |
++-------> |    _int      +-----+           |    bash deploy.sh -s bod_dev,stopo_dev.tlm.strasse -t int       |
 |         |              |                 |                                                                 |
 |         |              |                 |                                                                 |
 |         |              |                 | C: deploy from int to prod                                      |
-|         +--------------+                 |     bash deploy.sh -s bod_int,stopo_int.tlm.strasse -t prod     |
+B         +--------------+                 |     bash deploy.sh -s bod_int,stopo_int.tlm.strasse -t prod     |
 |                                          |                                                                 |
 |         +--------------+                 +-----------------------------------------------------------------+
 |         |              |                                                                                    
-|         |              |                                                                                    
-|         |              |                                                                                    
-B    +--> |    _dev      |                                                                                    
-|    |    |              |                                                                                    
-|    |    |              |                                                                                    
-|    |    |              |                                                                                    
-|    |    +--------------+                                                                                    
-|    A                                                                                                        
-|    |                                                                                                        
-|    |    +--------------+                                                                                    
-|    |    |              |                                                                                    
-|    |    |              |                                                                                    
-|    |    |              |                                                                                    
-+----+----+   _master    |                                                                                    
++----+----+              |                                                                                    
+          |              |                                                                                    
+     +--> |    _dev      |                                                                                    
+     |    |              |                                                                                    
+     |    |              |                                                                                    
+     |    |              |                                                                                    
+     |    +--------------+                                                                                    
+     A                                                                                                        
+     |                                                                                                        
+     |    +--------------+                                                                                    
+     |    |              |                                                                                    
+     |    |              |                                                                                    
+     |    |              |                                                                                    
+     +----+   _master    |                                                                                    
           |              |                                                                                    
           |              |                                                                                    
           |              |                                                                                    
