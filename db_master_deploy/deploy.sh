@@ -277,9 +277,9 @@ copy_database() {
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
     fi
 
-    # toposhop_(master|dev|int) have a max number of connections of 5
+    # toposhop_(master|dev|int) have a max number of connections of 15
     REGEX="^toposhop_(master|dev|int)$"
-    [[ ${target_db} =~ ${REGEX} ]] && psql -U pgkogis -h localhost -d template1 -c "ALTER DATABASE ${target_db} WITH CONNECTION LIMIT 5;" >/dev/null
+    [[ ${target_db} =~ ${REGEX} ]] && psql -U pgkogis -h localhost -d template1 -c "ALTER DATABASE ${target_db} WITH CONNECTION LIMIT 15;" >/dev/null
 
     REGEX="^bod_"
     if [[ ${source_db} =~ ${REGEX} ]]; then
