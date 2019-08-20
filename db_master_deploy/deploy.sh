@@ -272,7 +272,7 @@ copy_database() {
     # set database to read-only if it is not a _master or _demo database and if not toposhop reverse deploy and if not diemo database
     REGEX="^(master|demo)$"
     REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${source_db} =~${REGEX_DIEMO} ]]; then
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
         psql -U pgkogis -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
