@@ -381,9 +381,10 @@ copy_table() {
     # update materialized views in target database after table copy
     update_materialized_views table_scan
 
-    # set database to read-only if it is not a _master or _demo database
+    # set database to read-only if it is not a _master or _demo database or a diemo database
     REGEX="^(master|demo)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" ]]; then
+    REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     fi
 }
