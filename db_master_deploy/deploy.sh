@@ -269,9 +269,10 @@ copy_database() {
     # add some metainformation to the copied database as comment
     psql -d template1 -h localhost -c "COMMENT ON DATABASE ${target_db} IS 'copied from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
 
-    # set database to read-only if it is not a _master or _demo database and if not toposhop reverse deploy
+    # set database to read-only if it is not a _master or _demo database and if not toposhop reverse deploy and if not diemo database
     REGEX="^(master|demo)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" ]]; then
+    REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
         psql -U pgkogis -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
@@ -380,9 +381,10 @@ copy_table() {
     # update materialized views in target database after table copy
     update_materialized_views table_scan
 
-    # set database to read-only if it is not a _master or _demo database
+    # set database to read-only if it is not a _master or _demo database or a diemo database
     REGEX="^(master|demo)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" ]]; then
+    REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
+    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
         psql -h localhost -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     fi
 }
