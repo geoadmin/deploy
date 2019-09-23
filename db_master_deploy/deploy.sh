@@ -231,6 +231,18 @@ check_source() {
             exit 1
         fi
     fi
+
+    # ask for confirmation if diemo database will be deployed
+    if [[ ${source_db} == diemo_* ]]; then
+        echo -n "Are you really sure that you want to deploy diemo database '${source_db}' to '${target}'? (y/n) "
+        echo -n "The target database will be completely replaced!"
+        echo
+        [ ${answer+x} ] || read answer
+        if [ ! "${answer}" == "y" ]; then
+            echo "deploy aborted"
+            exit 1
+        fi
+    fi
 }
 
 #######################################
