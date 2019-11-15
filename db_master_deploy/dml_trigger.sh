@@ -85,22 +85,26 @@ do
     echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
     ssh -T ${sphinx} /bin/bash << HERE
             if [ -f ${SPHINX_CONFIG} ]; then
+                # silent check of service status, if searchd is not responding stop and start systemctl and searchd
+                if  ! searchd --status  &> /dev/null
+                then
+                    echo "sphinx service was not running, trying to start sphinx service on host ${sphinx}"
+                    sudo -u sphinxsearch searchd --stop &> /dev/null || :
+                    sudo -u root systemctl stop sphinxsearch &> /dev/null || :
+                    sleep 5
+                    sudo -u root systemctl start sphinxsearch
+                    sleep 5
+                fi
+                echo "sphinx service status on host ${sphinx}:"
+                # exit with error if service is still not running
+                searchd --status &> /dev/null || { echo "Sphinx Service is not running on host ${sphinx}" >&2; searchd --status >&2; exit 1; }
+                # update indexes
                 for table in ${tables}
                 do
                     echo "  update sphinx indexes that use the database source: \${table} ..."
                     python -u ${SPHINX_PG_TRIGGER} -d \${table} -c update -s ${SPHINX_CONFIG}
                 done
                 sleep 2
-                # check service status, if not running start service
-                if  ! searchd --status  > /dev/null
-                then
-                    echo "sphinx service was not running, trying to start sphinx service on host ${sphinx}"
-                    sudo -u root systemctl stop sphinxsearch
-                    sleep 5
-                    sudo -u root systemctl start sphinxsearch
-                fi
-                echo "sphinx service status on host ${sphinx}:"
-                searchd --status || { echo "Sphinx Service is not running on host ${sphinx}" >&2; exit 1; }
             else
                 echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
                 exit 1
