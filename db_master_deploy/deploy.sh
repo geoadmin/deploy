@@ -389,11 +389,13 @@ copy_table() {
     fi
 }
 
+
 #######################################
 # write lock
 # Globals:
-#   target_db
-#   COMMAND
+#   array_source
+#   LOCK_DIR
+#   LOCK_FD
 #   USER
 # Arguments:
 #   None
@@ -401,43 +403,61 @@ copy_table() {
 #   None
 #######################################
 write_lock() {
-    local lockfile="${LOCK_DIR}/${target_db}.lock"
     local timeout=3600  # max retry interval in seconds
     local counter=0
     local increment=5   # check every n seconds
-    # if target db is locked enter loop and wait for lockfile
-    until [ ! -f "${lockfile}" ] || [ "${counter}" -gt "${timeout}" ]
+    local status=0
+
+    # create unique array of db targets
+    local uniq_db_target=($(
+    for source in ${array_source[@]}; do
+        array=(${source//./ })
+        echo "${array[0]%_*}_${target:-${timestamp}}"
+    done | sort | uniq
+    ))
+
+    until [ "${counter}" -gt "${timeout}" ]
     do
-        echo "target db ${target_db} is locked ("${lockfile}"), waiting for deploy process to finish (${counter}/${timeout}) ..."
+        status=0
+        for index in ${!uniq_db_target[@]}; do
+            target_db=${uniq_db_target[${index}]}
+            # we need a differend fd for each database, we are using numbers from 500 upwards for these fds
+            fd=$((500+index))
+            lock ${target_db} ${fd} || { status=1; echo "target db ${target_db} is locked, waiting for deploy process to finish (${counter}/${timeout}) ..."; }
+        done
+
+        # break the until loop if all the databases have been locked succesfully
+        [ ${status} -eq 0 ] && break
         sleep ${increment}
         (( counter += increment ))
     done
-
-    # create lock files for target db
-    cat << EOF >${lockfile}
-${target_db} locked with command ${COMMAND} by user ${USER}
-EOF
-    trap remove_lock SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT ERR
+    [[ ${status} -eq 1 ]] && { >&2 echo "one of the target dbs is blocked by another deploy script. retry to deploy later with this command: ${COMMAND}."; exit 1; } || return 0
 }
 
+
 #######################################
-# remove lock
+# lock
+# source: http://kfirlavi.herokuapp.com/blog/2012/11/06/elegant-locking-of-bash-program/
 # Globals:
-#   target_db
-#   COMMAND
-#   USER
+#   LOCK_DIR
+#   LOCK_FD
 # Arguments:
-#   None
+#   prefix
+#   fd
 # Returns:
-#   None
+#   0 || 1
 #######################################
-remove_lock() {
-    local lockfile="${LOCK_DIR}/${target_db}.lock"
-    echo "cleaning lock file ${lockfile}"
-    rm -rf ${lockfile} &> /dev/null
-    # reset trap
-    trap - SIGHUP SIGINT SIGTERM SIGQUIT INT TERM EXIT ERR
+lock() {
+    local prefix=$1
+    local fd=${2:-$LOCK_FD}
+    local lock_file=$LOCK_DIR/$prefix.lock
+
+    # create lock file
+    eval "exec $fd>$lock_file"
+    # acquier the lock
+    flock -n "$fd" && return 0 || return 1
 }
+
 
 #######################################
 # check if toposhop deploy
@@ -519,6 +539,9 @@ done
 
 attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
+# start loop and stop the script if db target is blocked by another db deploy
+write_lock
+
 # loop through source_object values
 for source_object in "${array_source[@]}"; do
     array=(${source_object//./ })
@@ -538,10 +561,8 @@ for source_object in "${array_source[@]}"; do
         array_target_combined+=(${target_id})
         check_toposhop ${source_db}
         check_table
-        write_lock
         check_source
         copy_table
-        remove_lock
     fi
     # databases go here
     if [ "${#array[@]}" -eq "1" ]; then
@@ -556,11 +577,9 @@ for source_object in "${array_source[@]}"; do
         check_toposhop ${source_db}
         check_database
         check_source
-        write_lock
         update_materialized_views database
         bod_create_archive
         copy_database
-        remove_lock
     fi
 done
 
