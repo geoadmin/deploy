@@ -333,7 +333,7 @@ copy_table() {
     echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}"
 
     echo "drop indexes on ${target_id}"
-    (pg_dump -h localhost --if-exists -c -t "${source_schema}"."${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | psql -d "${target_db}" -h localhost 2>/dev/null ) || true
+    (pg_dump -h localhost --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | psql -d "${target_db}" -h localhost 2>/dev/null ) || true
 
     # populate array with foreign key constraints on target table
     declare -A foreign_keys=( )
@@ -359,17 +359,18 @@ copy_table() {
     ( psql -h localhost -c "begin; TRUNCATE TABLE ${target_schema}.${target_table}; commit;" -d "${target_db}" )
 
     (
+    local pids=()
     for ((i=1; i<=jobs; i++)); do
         offset=$(echo "((${i}-1)*${increment})" | bc)
         if [ $((offset+increment)) -gt "${rows}" ]; then counter=${rows}; else counter=$((offset+increment));fi
         echo "dumping ${offset}..${counter}"
-        ( psql -h localhost -qAt -d "${source_db}" -c "COPY ( SELECT ${columns} FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d "${target_db}" -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} (${columns}) from stdin with csv; SET session_replication_role = DEFAULT;" )& pids="${pids} $!"
+        ( psql -h localhost -qAt -d "${source_db}" -c "COPY ( SELECT ${columns} FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d "${target_db}" -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} (${columns}) from stdin with csv; SET session_replication_role = DEFAULT;" )& pids+="$!"
     done;
-    wait "${pids}" 2> /dev/null
+    wait "${pids[@]}" 2> /dev/null
     )
 
     echo "create indexes on ${target_id}"
-    ( pg_dump -h localhost --if-exists -c -t "${source_schema}"."${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true
+    ( pg_dump -h localhost --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
         for i in "${!foreign_keys[@]}"
