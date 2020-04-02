@@ -83,7 +83,7 @@ echo "db pattern: ${tables}"
 for sphinx in ${SPHINX}
 do
     echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
-    ssh -T ${sphinx} /bin/bash << HERE
+    ${SSH} -T ${sphinx} /bin/bash << HERE
             if [ -f ${SPHINX_CONFIG} ]; then
                 # silent check of service status, if searchd is not responding stop and start systemctl and searchd
                 if  ! searchd --status  &> /dev/null

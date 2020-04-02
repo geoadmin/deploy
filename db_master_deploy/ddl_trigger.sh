@@ -48,14 +48,14 @@ if [[ ! ${targets} == *${target}* ]]; then
 fi
 
 # check db access
-if [[ -z $(psql -lqt -h localhost 2> /dev/null) ]]; then
+if [[ -z $(${PSQL} -lqt 2> /dev/null) ]]; then
     echo "Unable to connect to database" >&2
     exit 1
 fi
 
 # check if source database exists
 for i in "${array_source[@]}"; do
-    if [[ -z $(psql -lqt -h localhost | egrep "\b${i}\b" 2> /dev/null) ]]; then
+    if [[ -z $(${PSQL} -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
         echo "No existing databases are named ${i}." >&2
         exit 1
     fi

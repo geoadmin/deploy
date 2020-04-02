@@ -1,6 +1,7 @@
 #!/bin/bash
 set -Ee
 set -o pipefail
+export LC_ALL=C
 USER=$(logname) # get user behind sudo su - 
 
 # if trigger script is called by deploy.sh, log parents pid in syslog
@@ -19,6 +20,8 @@ INFO="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - INFO"
 ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
+PSQL="psql -X -h localhost"
+SSH="ssh -o StrictHostKeyChecking=no -F /dev/null -A"
 
 # coloured output
 red='\e[0;31m'
@@ -108,7 +111,7 @@ exec 2> >(err)
 check_env() {
     # check for deploy.cfg, if exists read variables from file
     MY_DIR=$(dirname $(readlink -f $0))
-    if [[ -f "${MY_DIR}/deploy.cfg" ]]; then 
+    if [[ -f "${MY_DIR}/deploy.cfg" ]]; then
         source "${MY_DIR}/deploy.cfg"
     fi
 
