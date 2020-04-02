@@ -69,6 +69,7 @@ source "${MY_DIR}/includes.sh"
 #######################################
 check_table() {
     # check if source table exists, views cannot be deployed
+    set +o pipefail
     if ! psql -lqt -h localhost -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${source_db}" 2> /dev/null | egrep -q "\b${source_id}\b"; then
         echo "source table does not exist ${source_id} " >&2
         exit 1
@@ -79,7 +80,7 @@ check_table() {
         "target table does not exist ${target_id}." >&2
         exit 1
     fi
-
+    set -o pipefail
     # check if source and target table have the same structure (column name and data type)
     source_columns=$(psql -h localhost -d "${source_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' order by 1;")
     columns=$(psql -h localhost -d "${source_db}" -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command
