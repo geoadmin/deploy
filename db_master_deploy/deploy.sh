@@ -366,7 +366,7 @@ copy_table() {
         offset=$(echo "((${i}-1)*${increment})" | bc)
         if [ $((offset+increment)) -gt "${rows}" ]; then counter=${rows}; else counter=$((offset+increment));fi
         echo "dumping ${offset}..${counter}"
-        ( psql -h localhost -qAt -d "${source_db}" -c "COPY ( SELECT ${columns} FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d "${target_db}" -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} (${columns}) from stdin with csv; SET session_replication_role = DEFAULT;" )& pids+="$!"
+        ( psql -h localhost -qAt -d "${source_db}" -c "COPY ( SELECT ${columns} FROM ${source_schema}.${source_table} order by ${primary_keys:=1} asc offset ${offset} limit ${increment} ) TO STDOUT with csv" | psql -h localhost -qAt -d "${target_db}" -c "SET session_replication_role = replica; COPY ${target_schema}.${target_table} (${columns}) from stdin with csv; SET session_replication_role = DEFAULT;" )& pids+=("$!")
     done;
     wait "${pids[@]}" 2> /dev/null
     )
