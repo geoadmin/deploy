@@ -120,10 +120,12 @@ check_table() {
 #######################################
 check_database() {
     # check if source database exists
-    if ! psql -lqt -h localhost | egrep -q "\b${source_db}\b" 2> /dev/null; then
+    set +o pipefail
+    if ! psql -lqt -h localhost 2> /dev/null | egrep -q "\b${source_db}\b"; then
         echo "No existing databases are named ${source_db}." >&2
         exit 1
     fi
+    set -o pipefail
 }
 
 #######################################
