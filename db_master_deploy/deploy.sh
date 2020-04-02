@@ -16,10 +16,6 @@ display_usage() {
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
 
-# default values
-refreshmatviews=true
-refreshsphinx=true
-
 while getopts ":s:t:a:m:r:d:" options; do
     case "${options}" in
         s)
@@ -49,6 +45,13 @@ while getopts ":s:t:a:m:r:d:" options; do
 done
 
 source "${MY_DIR}/includes.sh"
+
+# global and default values
+refreshmatviews=true
+refreshsphinx=true
+CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
+START=$(date +%s%3N)
+attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
 #######################################
 # pre-copy checks for tables
@@ -492,10 +495,23 @@ check_toposhop() {
     fi
 }
 
-echo "start ${COMMAND}"
-CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
-START=$(date +%s%3N)
 
+#######################################
+# check input paramaters
+# Globals:
+#   target
+#   source_objects
+#   timestamp
+#   ArchiveMode
+#   refreshmatviews
+#   refreshsphinx
+#   array_source
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+check_input() {
 # if source_object is bod and target is empty and timestamp is present and source_object does not contain any ","
 if [[ ${source_objects%_*} == bod && -z "${target}" && ! -z "${timestamp}" && ! "${source_objects}" = *,* ]]
 then
@@ -532,16 +548,18 @@ fi
 
 # check source_objects
 for source_object in "${array_source[@]}"; do
-    array=(${source_object//./ })
+    local array=(${source_object//./ })
     # check source objects
     if [ "${#array[@]}" -ne "3" -a "${#array[@]}" -ne "1" ]; then
         echo "table data sources have to be formatted like this: db.schema.table, database sources like this: db" >&2
         exit 1
     fi
-    array=()
 done
+}
 
-attached_slaves=$(psql -qAt -h localhost -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
+[ "$0" = "$BASH_SOURCE" ] || return 0
+
+echo "start ${COMMAND}"
 
 # start loop and stop the script if db target is blocked by another db deploy
 write_lock
