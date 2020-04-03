@@ -113,7 +113,8 @@ check_env() {
     fi
 
     # check for lock dir, create it if it does not exist
-    LOCK_DIR="${MY_DIR}/tmp.lock"
+    readonly LOCK_DIR="${MY_DIR}/tmp.lock"
+    readonly LOCK_FD=200
     [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR}
 
     failed=false
