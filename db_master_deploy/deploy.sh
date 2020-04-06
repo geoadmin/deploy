@@ -46,13 +46,14 @@ while getopts ":s:t:a:m:r:d:" options; do
     esac
 done
 
+# check environment and load settings from includes.sh
+check_env
 
 # global and default values
 refreshmatviews=true
 refreshsphinx=true
 CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
 START=$(date +%s%3N)
-PSQL="psql -X -h localhost"
 attached_slaves=$(${PSQL} -qAt -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
 
 #######################################
@@ -558,10 +559,9 @@ for source_object in "${array_source[@]}"; do
 done
 }
 
-[ "$0" = "$BASH_SOURCE" ] || return 0
+[ "$0" = "${BASH_SOURCE[*]}" ] || return 0
 
 echo "start ${COMMAND}"
-
 # start loop and stop the script if db target is blocked by another db deploy
 write_lock
 

@@ -3,6 +3,7 @@
 # update github repository with database ddl dumps
 MY_DIR=$(dirname $(readlink -f $0))
 source "${MY_DIR}/includes.sh"
+check_env
 
 DUMPDIRECTORY="/home/geodata/db/"
 TIMESTAMP=$(date +"%F %T")
@@ -33,54 +34,57 @@ while getopts ":s:t:" options; do
     esac
 done
 
-echo "start ${COMMAND}" 
-START_DDL=$(date +%s%3N)
 
-# check for mandatory arguments 
-if [[ -z "${source_db}" || -z "${target}" ]]; then
-    echo "missing a required parameter (source_db -s and staging -t are required)" >&2
-    exit 1
-fi
-
-if [[ ! ${targets} == *${target}* ]]; then
-    echo "valid deploy targets are: '${targets}'" >&2
-    exit 1
-fi
-
-# check db access
-if [[ -z $(${PSQL} -lqt 2> /dev/null) ]]; then
-    echo "Unable to connect to database" >&2
-    exit 1
-fi
-
-# check if source database exists
-for i in "${array_source[@]}"; do
-    if [[ -z $(${PSQL} -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
-        echo "No existing databases are named ${i}." >&2
+check_access() {
+    # check for mandatory arguments 
+    if [[ -z "${source_db}" || -z "${target}" ]]; then
+        echo "missing a required parameter (source_db -s and staging -t are required)" >&2
         exit 1
     fi
-done
 
-# demo target will not be versionized
-if [[ ${target} == "demo" ]]; then
-    echo "demo target will not be versionized in github"
-    exit 0
-fi
-
-for db in "${array_source[@]}"
-do
-    db=${db%_*}                # remove db suffix lubis_3d_master -> lubis_3d
-    target_db="${db}_${target}"    # lubis_3d -> lubis_3d_dev
-    # do not dump _test databases
-    if [[ ${db} == *_test ]]; then
-        echo "skip ddl trigger for database ${db} ..."
-        continue
+    if [[ ! ${targets} == *${target}* ]]; then
+        echo "valid deploy targets are: '${targets}'" >&2
+        exit 1
     fi
-    dumpfile=$(printf "%s%s.sql" "${DUMPDIRECTORY}${target}/" "${db}")
-    echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
-    pg_dump -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
-done
 
+    # check db access
+    if [[ -z $(${PSQL} -lqt 2> /dev/null) ]]; then
+        echo "Unable to connect to database" >&2
+        exit 1
+    fi
+
+    # check if source database exists
+    for i in "${array_source[@]}"; do
+        if [[ -z $(${PSQL} -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
+            echo "No existing databases are named ${i}." >&2
+            exit 1
+        fi
+    done
+
+    # demo target will not be versionized
+    if [[ ${target} == "demo" ]]; then
+        echo "demo target will not be versionized in github"
+        exit 0
+    fi
+}
+
+process_dbs() {
+    for db in "${array_source[@]}"
+    do
+        db=${db%_*}                # remove db suffix lubis_3d_master -> lubis_3d
+        target_db="${db}_${target}"    # lubis_3d -> lubis_3d_dev
+        # do not dump _test databases
+        if [[ ${db} == *_test ]]; then
+            echo "skip ddl trigger for database ${db} ..."
+            continue
+        fi
+        dumpfile=$(printf "%s%s.sql" "${DUMPDIRECTORY}${target}/" "${db}")
+        echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
+        pg_dump -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
+    done
+}
+
+update_git() {
 # update git
 sudo su - geodata 2> /dev/null << HERE
     cd ${DUMPDIRECTORY}${target}/
@@ -93,6 +97,15 @@ sudo su - geodata 2> /dev/null << HERE
         git push origin ${target}
     fi
 HERE
+}
 
+# source this file until here
+[ "$0" = "${BASH_SOURCE[*]}" ] || return 0
+
+echo "start ${COMMAND}" 
+START_DDL=$(date +%s%3N)
+check_access
+process_dbs
+update_git
 END_DDL=$(date +%s%3N)
 echo "finished ${COMMAND} in $(format_milliseconds $((END_DDL-START_DDL)))"
