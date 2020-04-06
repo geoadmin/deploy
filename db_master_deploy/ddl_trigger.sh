@@ -5,7 +5,11 @@ MY_DIR=$(dirname $(readlink -f $0))
 source "${MY_DIR}/includes.sh"
 check_env
 
-DUMPDIRECTORY="/home/geodata/db/"
+# DUMPDIRECTORY="/home/geodata/db/"
+git_repo="git@github.com:geoadmin/db.git"
+git_dir=$(mktemp -d -t "$0"_XXXXX -p "${MY_DIR}/tmp")
+trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
+
 TIMESTAMP=$(date +"%F %T")
 
 display_usage() {
@@ -68,6 +72,7 @@ check_access() {
     fi
 }
 
+
 process_dbs() {
     for db in "${array_source[@]}"
     do
@@ -78,17 +83,20 @@ process_dbs() {
             echo "skip ddl trigger for database ${db} ..."
             continue
         fi
-        dumpfile=$(printf "%s%s.sql" "${DUMPDIRECTORY}${target}/" "${db}")
+        dumpfile=$(printf "%s%s.sql" "${git_dir}/" "${db}")
         echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
         pg_dump -h localhost -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
     done
 }
 
+
+initialize_git() {
+    git clone -b ${target} ${git_repo} ${git_dir}
+}
+
+
 update_git() {
-# update git
-sudo su - geodata 2> /dev/null << HERE
-    cd ${DUMPDIRECTORY}${target}/
-    git pull 2>&1
+    cd ${git_dir}
     echo "${TIMESTAMP} | User: ${USER} | DB: ${source_db} | COMMAND: ${COMMAND}" >> deploy.log
     # commit only if ddl of whole database has changed
     if git status --porcelain | grep -E "M|??" | grep ".sql$" > /dev/null; then
@@ -96,7 +104,6 @@ sudo su - geodata 2> /dev/null << HERE
         git commit -m "${TIMESTAMP} | User: ${USER} | DB: ${source_db} | COMMAND: ${COMMAND} auto commit of whole database deploy"
         git push origin ${target}
     fi
-HERE
 }
 
 # source this file until here
@@ -105,6 +112,7 @@ HERE
 echo "start ${COMMAND}" 
 START_DDL=$(date +%s%3N)
 check_access
+initialize_git
 process_dbs
 update_git
 END_DDL=$(date +%s%3N)
