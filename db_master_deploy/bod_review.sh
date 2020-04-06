@@ -43,7 +43,8 @@ tag_name="tag_${tag_name:-$bod_database}"
 # root branch will be used as reference branch
 root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
-git_dir="${MY_DIR}/tmp"
+git_dir=$(mktemp -d -t "$0"_XXXXX -p "${MY_DIR}/tmp")
+trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
 
 # sql queries, must have a valid choice of attributes for all bod stagings
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
@@ -81,14 +82,7 @@ check_access() {
 
 initialize_git() {
     # create temporary git folder from scratch and checkout
-    mkdir -p ${git_dir}
-    cd "${git_dir}"
-    if [ ! -d "${git_dir}/db/.git" ]
-    then
-        git clone ${git_repo}
-    fi
-
-    cd "${git_dir}/db"
+    git clone ${git_repo} ${git_dir} && cd "${git_dir}"
 
     # checkout default branch
     git checkout prod 1>/dev/null
@@ -137,7 +131,7 @@ generate_json() {
     set -e
 }
 
-# source this file until here 
+# source this file until here
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
 
 check_access
