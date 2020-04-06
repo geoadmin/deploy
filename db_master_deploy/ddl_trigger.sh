@@ -91,7 +91,7 @@ process_dbs() {
 
 
 initialize_git() {
-    git clone -b ${target} ${git_repo} ${git_dir}
+    git clone -b ${target} ${git_repo} ${git_dir} 2>&1
 }
 
 
