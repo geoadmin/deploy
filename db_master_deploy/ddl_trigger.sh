@@ -7,7 +7,7 @@ check_env
 
 # DUMPDIRECTORY="/home/geodata/db/"
 git_repo="git@github.com:geoadmin/db.git"
-git_dir=$(mktemp -d -t "$0"_XXXXX -p "${MY_DIR}/tmp")
+git_dir=$(mktemp -d -p "${MY_DIR}/tmp" "$(basename "$0")"_XXXXX)
 trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
 
 TIMESTAMP=$(date +"%F %T")
@@ -91,7 +91,7 @@ process_dbs() {
 
 
 initialize_git() {
-    git clone -b ${target} ${git_repo} ${git_dir} 2>&1
+    git clone -b ${target} ${git_repo} ${git_dir}
 }
 
 
@@ -112,8 +112,8 @@ update_git() {
 echo "start ${COMMAND}" 
 START_DDL=$(date +%s%3N)
 check_access
-initialize_git
+initialize_git 2>&1
 process_dbs
-update_git
+update_git 2>&1
 END_DDL=$(date +%s%3N)
 echo "finished ${COMMAND} in $(format_milliseconds $((END_DDL-START_DDL)))"

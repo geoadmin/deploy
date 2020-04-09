@@ -9,7 +9,6 @@
 # * json dump of the chsdi relevant views and columns
 # * create or update an equally named branch in github
 #
-
 MY_DIR=$(dirname $(readlink -f $0))
 source "${MY_DIR}/includes.sh"
 
@@ -43,7 +42,8 @@ tag_name="tag_${tag_name:-$bod_database}"
 # root branch will be used as reference branch
 root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
-git_dir=$(mktemp -d -t "$0"_XXXXX -p "${MY_DIR}/tmp")
+git_dir=$(mktemp -d -p "${MY_DIR}/tmp"  "$(basename "$0")"_XXXXX)
+
 trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
 
 # sql queries, must have a valid choice of attributes for all bod stagings
