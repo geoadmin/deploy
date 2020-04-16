@@ -81,7 +81,7 @@ err() {
 #   integer
 #######################################
 Ceiling () {
-  python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
+    python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
 }
 
 #######################################
