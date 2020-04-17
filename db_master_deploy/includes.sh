@@ -110,7 +110,8 @@ redirect_output() {
 # check environment variables
 check_env() {
     # check for deploy.cfg, if exists read variables from file
-    MY_DIR=$(dirname $(readlink -f $0))
+    MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
     if [[ -f "${MY_DIR}/deploy.cfg" ]]; then
         source "${MY_DIR}/deploy.cfg"
     fi

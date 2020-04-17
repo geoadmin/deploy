@@ -6,7 +6,7 @@
 # copy tables                           [ -s table      -t target   ]
 # archive/snapshot bod                  [ -s bod_master -a 20150303 ]
 
-MY_DIR=$(dirname "$(readlink -f "$0")")
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${MY_DIR}/includes.sh"
 
 display_usage() {

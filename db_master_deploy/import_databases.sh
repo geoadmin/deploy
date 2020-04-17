@@ -1,5 +1,5 @@
 #!/bin/bash
-MY_DIR=$(dirname $(readlink -f $0))
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$MY_DIR/includes.sh"
 USER_SCRIPT=$(whoami)
 
