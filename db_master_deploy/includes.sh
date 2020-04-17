@@ -118,7 +118,7 @@ check_env() {
     # check for lock dir, create it if it does not exist
     readonly LOCK_DIR="${MY_DIR}/tmp.lock"
     readonly LOCK_FD=200
-    [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR}
+    [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR} -p
 
     local failed=false
     # DB superuser, set and not empty
@@ -154,14 +154,14 @@ check_env() {
         PUBLISHED_SLAVES='.*'
     fi
     if [[ "${failed}" = true ]];then
-        echo "you can set the variables in ${MY_DIR}/deploy.cfg"
+        echo "you can set the variables in ${MY_DIR}/deploy.cfg" >&2
         exit 1
     fi
     # force geodata
     if [[ $(whoami) != "geodata" ]];
     then
         echo "This script must be run as geodata!" >&2
-        #exit 1
+        exit 1
     fi
 }
 
