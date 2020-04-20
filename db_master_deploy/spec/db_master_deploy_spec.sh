@@ -215,6 +215,123 @@ Describe 'deploy.sh'
         The status should be success
       End
     End
+    Describe 'check_table'
+      source_db="source_db"
+      source_schema="source_schema"
+      source_table="source_table"
+      source_id="${source_db}.${source_schema}.${source_table}"
+      target_db="target_db"
+      target_schema="target_schema"
+      target_table="target_table"
+      target_id="${target_db}.${target_schema}.${target_table}"
+      test_check_table() {
+        check_table
+        eval "$1"
+      }
+      Example 'check_table_source_true'
+        PSQL() {
+          echo "${source_id}"
+        }
+        When run test_check_table check_table_source
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_table_source_false'
+        PSQL() {
+          echo "table does not exist"
+        }
+        When run test_check_table check_table_source
+        The stderr should start with "source table does not exist ${source_id}"
+        The status should be failure
+      End
+      Example 'check_table_target_true'
+        PSQL() {
+          echo "${target_id}"
+        }
+        When run test_check_table check_table_target
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_table_target_false'
+        PSQL() {
+          echo "table does not exist"
+        }
+        When run test_check_table check_table_target
+        The stderr should be present
+        The status should be failure
+      End
+      Example 'check_table_schema_true'
+        PSQL() {
+          :
+        }
+        When run test_check_table check_table_schema
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_table_schema_false'
+        PSQL() {
+          source_columns=$(cat << EOF
+bgdi_created|timestamp without time zone
+bgdi_created_by|character varying
+bgdi_id|integer
+bgdi_modified|timestamp without time zone
+bgdi_modified_by|character varying
+cache_ttl|integer
+fk_dataset_id|character varying
+format|character varying
+published|boolean
+resolution_max|numeric
+resolution_min|numeric
+s3_resolution_max|numeric
+timestamp|character varying
+wms_gutter|integer
+EOF
+)
+          target_columns=$(cat << EOF
+cache_ttl|integer
+fk_dataset_id|character varying
+format|character varying
+published|boolean
+resolution_max|numeric
+resolution_min|numeric
+s3_resolution_max|numeric
+timestamp|character varying
+wms_gutter|integer
+EOF
+)
+          # function output
+          if [[ "$@" =~ "${source_db}" ]]; then
+            echo "${source_columns}"
+          fi
+          if [[ "$@" =~ "${target_db}" ]]; then
+            echo "${target_columns}"
+          fi
+        }
+        When run test_check_table check_table_schema
+        The stderr should start with "structure of source and target table is different."
+        The status should be failure
+      End
+      Example 'check_table_dependencies_true'
+        PSQL() {
+          echo 0
+        }
+        When run test_check_table check_table_dependencies
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_table_dependencies_true'
+        PSQL() {
+          echo 1
+        }
+        When run test_check_table check_table_dependencies
+        The stderr should equal "cannot copy table source_db.source_schema.source_table, table is referenced by 1 objects, use db_copy instead."
+        The status should be failure
+      End
+    End
   End
   mock_tear_down
 End

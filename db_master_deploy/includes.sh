@@ -18,7 +18,10 @@ INFO="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - INFO"
 ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
-PSQL="psql -X -h localhost"
+PSQL() {
+    psql -X -h localhost "$@"
+}
+
 SSH="ssh -o StrictHostKeyChecking=no -F /dev/null -A"
 
 # coloured output
