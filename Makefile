@@ -33,6 +33,7 @@ all:
 		curl -fsSL https://git.io/shellspec | sh -s $(SHELLSPEC_VERSION) -p $(INSTALL_DIRECTORY) -y; \
 	fi
 	@cat <<EOF > .git/hooks/pre-commit
+	#!/bin/bash
 	make bash_unit_test
 	if [[ \$$? != 0 ]];
 	then
