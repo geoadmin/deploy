@@ -323,13 +323,70 @@ EOF
         The stderr should not be present
         The status should be success
       End
-      Example 'check_table_dependencies_true'
+      Example 'check_table_dependencies_false'
         PSQL() {
-          echo 1
+          echo 15
         }
         When run test_check_table check_table_dependencies
-        The stderr should equal "cannot copy table source_db.source_schema.source_table, table is referenced by 1 objects, use db_copy instead."
+        The stderr should equal "cannot copy table source_db.source_schema.source_table, table is referenced by 15 objects, use db_copy instead."
         The status should be failure
+      End
+    End
+    Describe 'check_database'
+      source_db="source_db"
+      Example 'check_database_true'
+        PSQL() {
+          echo "${source_db}"
+        }
+        When run check_database
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_databasee_false'
+        PSQL() {
+          :
+        }
+        When run check_database
+        The stderr should equal "No existing databases are named ${source_db}."
+        The status should be failure
+      End
+    End
+    Describe 'update_materialized_views'
+      refreshmatviews=true
+      target_db="bod_master"
+      source_db="bod_master"
+      matview_1="re3.view_bod_layer_info_de"
+      matview_2="re3.view_bod_layer_info_fr"
+      array_matviews=("${target_db}.${matview_1}" "${target_db}.${matview_2}")
+      Example 'update_materialized_views_table_scan'
+        PSQL() {
+          echo "${matview_1}"
+        }
+        When run update_materialized_views table_scan
+        The stdout should equal "table_scan: found materialized view ${target_db}.${matview_1} which is referencing . ..."
+        The status should be success
+      End
+      Example 'update_materialized_views_table_commit'
+        PSQL() {
+          :
+        }
+        When call update_materialized_views table_commit
+        The stderr should not be present
+        The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} ..."
+        The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} ..."
+        The variable array_target_combined should include "${matview_1}"
+        The status should be success
+      End
+      Example 'update_materialized_views_database'
+        PSQL() {
+          echo "${matview_1} ${matview_2}"
+        }
+        When call update_materialized_views database
+        The stderr should not be present
+        The line 1 of stdout should eq "database: updating materialized view ${source_db}.${matview_1} before starting deploy ..."
+        The line 2 of stdout should eq "database: updating materialized view ${source_db}.${matview_2} before starting deploy ..."
+        The status should be success
       End
     End
   End
