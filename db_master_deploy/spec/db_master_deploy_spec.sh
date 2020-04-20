@@ -389,6 +389,30 @@ EOF
         The status should be success
       End
     End
+    Describe 'bod_create_archive'
+      source_db="bod_master"
+      PSQL() {
+        exit 0
+      }
+      Example 'wrong timestamp'
+        timestamp="wrong_pattern"
+        When run bod_create_archive
+        The stdout should not be present
+        The stderr should eq "timestamp must match the pattern [a-zA-Z0-9]+"
+        The status should be failure
+      End
+      Example 'no timestamp'
+        When run bod_create_archive
+        The output should equal 'Not archiving'
+        The status should be success
+      End
+      Example 'create archive'
+        timestamp="validtimestamp"
+        When run bod_create_archive
+        The output should equal "Archiving ${source_db} as ${source_db}${timestamp}..."
+        The status should be success
+      End
+    End
   End
   mock_tear_down
 End
