@@ -542,8 +542,9 @@ EOF
       source ./includes.sh
       Example 'standard deploy valid target'
         target=dev
-        When run check_toposhop stopo_master
+        When call check_toposhop stopo_master
         The status should be success
+        The variable ToposhopMode should not be defined
       End
       Example 'standard deploy invalid target'
         target=invalid_target
@@ -553,15 +554,72 @@ EOF
       End
       Example 'toposhop deploy valid target'
         target=dev
-        When run check_toposhop toposhop_prod
+        When call check_toposhop toposhop_prod
         The status should be success
         The stderr should not be present
+        The variable ToposhopMode should be defined
       End
       Example 'toposhop deploy invalid target'
         target=prod
         When run check_toposhop toposhop_prod
         The status should be failure
         The stderr should eq "valid toposhop deploy targets are: 'dev int'"
+      End
+    End
+    Describe 'check_input'
+      source ./includes.sh
+      target=dev
+      refreshsphinx=true
+      refreshmatviews=true
+      PSQL() {
+        echo "true"
+      }
+      source_objects=("bod_master.public.tileset")
+      Example 'archive mode'
+        unset target
+        timestamp="20200101"
+        When call check_input
+        The output should eq "BOD pure archive mode true"
+        The status should be success
+        The variable ArchiveMode should eq true
+      End
+      Example 'mandatory argunents missing target'
+        unset target
+        When run check_input
+        The status should be failure
+        The stderr should eq 'missing a required parameter (source_db -s and staging -t are required)'
+      End
+      Example 'mandatory argunents missing source_objects'
+        unset source_objects
+        When run check_input
+        The status should be failure
+        The stderr should eq 'missing a required parameter (source_db -s and staging -t are required)'
+      End
+      Example 'wrong value for refreshmatviews'
+        refreshmatviews=blurb
+        When run check_input
+        The status should be failure
+        The stderr should eq 'wrong parameter -r blurb , should be true or false'
+      End
+      Example 'wrong value for refreshsphinx'
+        refreshsphinx=blurb
+        When run check_input
+        The status should be failure
+        The stderr should eq 'wrong parameter -r blurb , should be true or false'
+      End
+      Example 'no db connection'
+        PSQL() {
+          :
+        }
+        When run check_input
+        The status should be failure
+        The stderr should eq 'Unable to connect to database cluster'
+      End
+      Example 'wrong formatted source_objects'
+        array_source=("bod_master.tileset")
+        When run check_input
+        The status should be failure
+        The stderr should eq 'table data sources have to be formatted like this: db.schema.table, database sources like this: db'
       End
     End
   End
