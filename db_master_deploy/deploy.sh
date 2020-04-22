@@ -193,9 +193,9 @@ bod_create_archive() {
             archive_bod="${source_db}${timestamp}"
             echo "Archiving ${source_db} as ${archive_bod}..."
             PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${archive_bod}';" >/dev/null
-            dropdb -h localhost --if-exists "${archive_bod}" &> /dev/null
+            DROPDB --if-exists "${archive_bod}" &> /dev/null
             PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
-            createdb -h localhost -O postgres --encoding 'UTF-8' -T "${source_db}" "${archive_bod}" >/dev/null
+            CREATEDB -O postgres --encoding 'UTF-8' -T "${source_db}" "${archive_bod}" >/dev/null
             PSQL -d template1 -c "COMMENT ON DATABASE ${archive_bod} IS 'snapshot/archive copy from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
             echo "bash bod_review.sh -d ${archive_bod} ..."
             bash "${MY_DIR}/bod_review.sh" -d "${archive_bod}" 1>&5 2>&6
@@ -253,23 +253,22 @@ check_source() {
 #######################################
 copy_database() {
     size=$(PSQL -qAt -d "${source_db}" -c "SELECT pg_size_pretty(pg_database_size('"${source_db}"'));")
-
     echo "copy ${source_db} to ${target_db} size: ${size} attached slaves: ${attached_slaves}"
     echo "creating temporary database ${target_db_tmp} ..."
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db_tmp}';" >/dev/null
-    dropdb -h localhost --if-exists "${target_db_tmp}" &> /dev/null
+    DROPDB --if-exists "${target_db_tmp}" &> /dev/null
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
 
     # toposhop db's have to be created with owner swisstopo
     if [[ -z "${ToposhopMode}" ]]; then
-        createdb -h localhost -O postgres --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
+        CREATEDB -O postgres --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
     else
-        createdb -h localhost -O swisstopo --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
+        CREATEDB -O swisstopo --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
     fi
 
     echo "replacing ${target_db} with ${target_db_tmp} ..."
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db}';" >/dev/null
-    dropdb -h localhost --if-exists "${target_db}" &>/dev/null
+    DROPDB --if-exists "${target_db}" &>/dev/null
     PSQL -d template1 -c "alter database ${target_db_tmp} rename to ${target_db};" >/dev/null
 
     # add some metainformation to the copied database as comment

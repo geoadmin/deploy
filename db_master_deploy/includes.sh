@@ -22,6 +22,14 @@ PSQL() {
     psql -X -h localhost "$@"
 }
 
+DROPDB() {
+    dropdb -h localhost
+}
+
+CREATEDB() {
+   createdb -h localhost
+}
+
 SSH="ssh -o StrictHostKeyChecking=no -F /dev/null -A"
 
 # coloured output
