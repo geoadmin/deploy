@@ -338,7 +338,7 @@ copy_table() {
     echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}"
 
     echo "drop indexes on ${target_id}"
-    (pg_dump -h localhost --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | PSQL -d "${target_db}"  2>/dev/null ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | PSQL -d "${target_db}"  2>/dev/null ) || true
 
     # populate array with foreign key constraints on target table
     declare -A foreign_keys=( )
@@ -375,7 +375,7 @@ copy_table() {
     )
 
     echo "create indexes on ${target_id}"
-    ( pg_dump -h localhost --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -X -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -X -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
         for i in "${!foreign_keys[@]}"

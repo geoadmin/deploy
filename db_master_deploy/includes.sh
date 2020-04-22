@@ -23,11 +23,15 @@ PSQL() {
 }
 
 DROPDB() {
-    dropdb -h localhost
+    dropdb -h localhost "$@"
 }
 
 CREATEDB() {
-   createdb -h localhost
+   createdb -h localhost "$@"
+}
+
+PG_DUMP() {
+    pg_dump -h localhost "$@"
 }
 
 SSH="ssh -o StrictHostKeyChecking=no -F /dev/null -A"
