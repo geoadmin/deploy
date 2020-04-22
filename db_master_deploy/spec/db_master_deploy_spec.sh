@@ -504,6 +504,40 @@ EOF
         The status should be success
       End
     End
+    Describe 'write_lock'
+      source ./includes.sh
+      array_source=("bod_master.public.table3")
+      target="dev"
+      mockdir="$(pwd)/mock_data"
+      LOCK_DIR="${mockdir}"
+      mock_write_lock() {
+        rm -rf "${mockdir}" || :
+        mkdir -p "${mockdir}"
+      }
+      mock_tear_down() {
+        rm -rf "${mockdir}" || :
+      }
+      test_lock() {
+        write_lock &
+        write_lock
+        sleep 6
+      }
+      mock_write_lock
+      Example 'target locked'
+        When run test_lock
+        The status should be success
+        The stderr should not be present
+        The line 1 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (0/3600) ..."
+        The line 2 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (5/3600) ..."
+      End
+      Example 'target not locked'
+        When run write_lock
+        The stderr should not be present
+        The stdout should not be present
+        The status should be success
+      End
+      mock_tear_down
+    End
   End
   mock_tear_down
 End

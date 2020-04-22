@@ -403,6 +403,7 @@ copy_table() {
 #   LOCK_DIR
 #   LOCK_FD
 #   USER
+#   target
 # Arguments:
 #   None
 # Returns:
@@ -413,7 +414,6 @@ write_lock() {
     local counter=0
     local increment=5   # check every n seconds
     local status=0
-
     # create unique array of db targets
     local uniq_db_target=($(
     for source in "${array_source[@]}"; do
