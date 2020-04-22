@@ -413,6 +413,55 @@ EOF
         The status should be success
       End
     End
+    Describe 'copy_database'
+      source_db="db_master"
+      target_db="db_target"
+      attached_slaves=2
+      db_size="50GB"
+      target_db_tmp="${target_db}_tmp"
+      MY_DIR="${MY_DIR}/mock_data"
+      mock_bodreview() {
+      exec 5>&1
+      exec 6>&2
+        mkdir -p "${MY_DIR}"
+        cat << EOF > "${MY_DIR}/bod_review.sh"
+#!/bin/bash
+EOF
+      }
+      mock_tear_down() {
+        exec 5>&-
+        exec 6>&-
+        rm -rf "${MY_DIR}"
+      }
+      PSQL() {
+        echo "${db_size}"
+      }
+      CREATEDB() {
+        :
+      }
+      DROPDB() {
+        :
+      }
+      Example 'standard db deploy'
+        mock_bodreview
+        When run copy_database
+        The output should start with "copy ${source_db} to ${target_db} size: ${db_size} attached slaves: ${attached_slaves}"
+        The output should end with "replacing ${target_db} with ${target_db_tmp} ..."
+        The stderr should not be present
+        The status should be success
+        mock_tear_down
+      End
+      Example 'bod db deploy'
+        source_db=bod_master
+        mock_bodreview
+        When run copy_database
+        The output should start with "copy ${source_db} to ${target_db} size: ${db_size} attached slaves: ${attached_slaves}"
+        The output should end with "bash bod_review.sh -d ${target_db} ..."
+        The stderr should not be present
+        The status should be success
+        mock_tear_down
+      End
+    End
   End
   mock_tear_down
 End
