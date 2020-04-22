@@ -462,6 +462,48 @@ EOF
         mock_tear_down
       End
     End
+    Describe 'copy_table'
+      source ./includes.sh
+      source_db="stopo_master"
+      source_schema="public"
+      source_table="ch"
+      source_id="${source_db}.${source_schema}.${source_table}"
+      target_db="stopo_dev"
+      target_schema="${source_schema}"
+      target_table="${source_table}"
+      target_id="${target_db}.${target_schema}.${target_table}"
+      attached_slaves=2
+      CPUS=4
+      PSQL() {
+        echo "${rows}"
+      }
+      CREATEDB() {
+        :
+      }
+      DROPDB() {
+        :
+      }
+      PG_DUMP() {
+        :
+      }
+      update_materialized_views() {
+        :
+      }
+      Example 'single thread table deploy'
+        rows=200
+        When run copy_table
+        The line 1 of output should include "copy ${source_id} to ${target_id} rows: ${rows} threads: 1 rows/thread: ${rows} size: ${rows} attached slaves: ${attached_slaves}"
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'multi thread table deploy'
+        rows=1200
+        When run copy_table
+        The line 1 of output should include "copy ${source_id} to ${target_id} rows: ${rows} threads: ${CPUS} rows/thread: $((rows/CPUS)) size: ${rows} attached slaves: ${attached_slaves}"
+        The stderr should not be present
+        The status should be success
+      End
+    End
   End
   mock_tear_down
 End
