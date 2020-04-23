@@ -2,8 +2,6 @@
 #
 # update github repository with database ddl dumps
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "${MY_DIR}/includes.sh"
-check_env
 
 # DUMPDIRECTORY="/home/geodata/db/"
 git_repo="git@github.com:geoadmin/db.git"
@@ -52,14 +50,14 @@ check_access() {
     fi
 
     # check db access
-    if [[ -z $(${PSQL} -lqt 2> /dev/null) ]]; then
+    if [[ -z $(PSQL -lqt 2> /dev/null) ]]; then
         echo "Unable to connect to database" >&2
         exit 1
     fi
 
     # check if source database exists
     for i in "${array_source[@]}"; do
-        if [[ -z $(${PSQL} -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
+        if [[ -z $(PSQL -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
             echo "No existing databases are named ${i}." >&2
             exit 1
         fi
@@ -108,6 +106,10 @@ update_git() {
 
 # source this file until here
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
+
+source "${MY_DIR}/includes.sh"
+check_env
+
 
 echo "start ${COMMAND}" 
 START_DDL=$(date +%s%3N)
