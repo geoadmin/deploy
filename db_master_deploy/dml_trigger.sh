@@ -2,8 +2,6 @@
 #
 # update sphinx index
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "${MY_DIR}/includes.sh"
-check_env
 
 # SPHINX IP's
 SPHINX=${SPHINX_DEV};
@@ -117,6 +115,8 @@ HERE
 
 # source script until here
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
+source "${MY_DIR}/includes.sh"
+check_env
 
 check_arguments
 
