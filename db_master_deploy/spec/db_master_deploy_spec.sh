@@ -59,7 +59,7 @@ reset_env() {
 }
 
 source_code() {
-  source ./"$1"
+  source "$(realpath "$1")"
 }
 
 # includes.sh unit tests
@@ -706,6 +706,42 @@ Describe 'ddl_trigger.sh'
       When call test
       The status should be success
       The stdout should include "| DB: ${source_db} | "
+    End
+  End
+  mock_tear_down
+End
+Describe 'dml_trigger.sh'
+  mock_set_up
+  add_deploy_config
+  source_code ${deploy_config}
+  source_code includes.sh
+  source_code dml_trigger.sh
+  Describe 'check_access'
+    tables="bod_master.public.tileset"
+    target="dev"
+    Example 'checks passed'
+      When run check_arguments
+      The status should be success
+      The output should not be present
+    End
+    Example 'missing required parameter'
+      unset target
+      When run check_arguments
+      The stdout should be present
+      The status should be failure
+      The stderr should start with "missing a required parameter "
+    End
+    Example 'invalid deploy target'
+      target="invalid_target"
+      When run check_arguments
+      The stderr should start with "valid deploy targets are:"
+      The status should be failure
+    End
+    Example 'missing sphinx host'
+      unset SPHINX_DEV
+      When run check_arguments
+      The stderr should eq "please define a sphinx host for ${target}"
+      The status should be failure
     End
   End
   mock_tear_down
