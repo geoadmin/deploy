@@ -12,6 +12,7 @@ mock_set_up() {
     mv -f "${deploy_config}" "${deploy_config_backup}"
   fi
   touch "${deploy_config}"
+  mkdir -p "$(pwd)/tmp"
 }
 
 mock_tear_down() {
@@ -19,6 +20,7 @@ mock_tear_down() {
   if [ -f "${deploy_config_backup}" ]; then
     mv -f "${deploy_config_backup}" "${deploy_config}"
   fi
+  rm -rf "$(pwd)/tmp"
 }
 
 # overwrite whoami
@@ -57,7 +59,7 @@ reset_env() {
 }
 
 source_code() {
-  source ./includes.sh
+  source ./"$1"
 }
 
 # includes.sh unit tests
@@ -65,19 +67,19 @@ Describe 'includes.sh'
   Describe 'variables'
     Example 'default values'
       # each Example block will be run in a subshell
-      When call source_code
+      When call source_code includes.sh
       The variable comment should equal 'manual db deploy'
       The variable message should be undefined
     End
     Example 'custom message'
       message="automatic deploy"
-      When call source_code
+      When call source_code includes.sh
       The variable message should be defined
       The variable comment should equal 'automatic deploy'
     End
   End
   Describe 'basic functions'
-    source_code
+    source_code includes.sh
     Example 'Ceiling'
       When run Ceiling  15 4
       The stdout should equal '4'
@@ -88,7 +90,7 @@ Describe 'includes.sh'
     End
   End
   Describe 'check_env'
-    source_code
+    source_code includes.sh
     mock_set_up
     Example 'no deploy.cfg and no env'
       # have to run in subshell because function exit
@@ -185,13 +187,10 @@ End
 
 # deploy.sh unit tests
 Describe 'deploy.sh'
-  source_code() {
-    source ./deploy.sh
-  }
   mock_set_up
   add_deploy_config
   Describe 'functions'
-    source_code
+    source_code deploy.sh
     Describe 'check_source'
       target_db="testdb_dev"
       source_db="testdb_dev"
@@ -463,7 +462,7 @@ EOF
       End
     End
     Describe 'copy_table'
-      source ./includes.sh
+      source_code includes.sh
       source_db="stopo_master"
       source_schema="public"
       source_table="ch"
@@ -505,7 +504,7 @@ EOF
       End
     End
     Describe 'write_lock'
-      source ./includes.sh
+      source_code includes.sh
       array_source=("bod_master.public.table3")
       target="dev"
       mockdir="$(pwd)/mock_data"
@@ -539,7 +538,7 @@ EOF
       mock_tear_down
     End
     Describe 'check_toposhop'
-      source ./includes.sh
+      source_code includes.sh
       Example 'standard deploy valid target'
         target=dev
         When call check_toposhop stopo_master
@@ -567,7 +566,7 @@ EOF
       End
     End
     Describe 'check_input'
-      source ./includes.sh
+      source_code includes.sh
       target=dev
       refreshsphinx=true
       refreshmatviews=true
@@ -621,6 +620,92 @@ EOF
         The status should be failure
         The stderr should eq 'table data sources have to be formatted like this: db.schema.table, database sources like this: db'
       End
+    End
+  End
+  mock_tear_down
+End
+Describe 'ddl_trigger.sh'
+  mock_set_up
+  add_deploy_config
+  source_code includes.sh
+  source_code ddl_trigger.sh
+  Describe 'check_access'
+    source_db="stopo_master"
+    array_source=("${source_db}")
+    target="dev"
+    PSQL() {
+      echo "db connection to ${source_db} established"
+    }
+    Example 'checks passed'
+      When run check_access
+      The status should be success
+      The output should not be present
+    End
+    Example 'missing mandatory parameter'
+      unset target
+      When run check_access
+      The status should be failure
+      The stderr should start with "missing a required parameter "
+    End
+    Example 'invalid deploy target'
+      target="invalid_target"
+      When run check_access
+      The status should be failure
+      The stderr should start with "valid deploy targets are: "
+    End
+    Example 'database connection'
+      PSQL() {
+        :
+      }
+      When run check_access
+      The status should be failure
+      The stderr should start with "Unable to connect to database"
+    End
+    Example 'demo target'
+      target="demo"
+      When run check_access
+      The status should be success
+      The stdout should eq "demo target will not be versionized in github"
+    End
+  End
+  Describe 'process_db'
+    source_db="stopo_master"
+    array_source=("${source_db}")
+    target="dev"
+    PG_DUMP() {
+      echo "this is the dump file of ${source_db}"
+    }
+    test_dump() {
+      process_dbs
+      cat "${dumpfile}"
+    }
+    Example 'create dump file'
+      When call test_dump
+      The status should be success
+      The line 1 of stdout should start with "creating ddl dump"
+      The line 2 of stdout should eq "this is the dump file of ${source_db}"
+    End
+    Example 'skip dump file'
+      source_db="stopo_test_master"
+      array_source=("${source_db}")
+      When call process_dbs
+      The status should be success
+      The stdout should start with "skip ddl trigger for database "
+    End
+  End
+  Describe 'update_git'
+    Example 'git comment'
+      source_db="stopo_master"
+      git() {
+        echo "$@"
+      }
+      test() {
+        update_git
+        cat deploy.log
+      }
+      When call test
+      The status should be success
+      The stdout should include "| DB: ${source_db} | "
     End
   End
   mock_tear_down
