@@ -10,7 +10,6 @@
 # * create or update an equally named branch in github
 #
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "${MY_DIR}/includes.sh"
 
 display_usage() {
     echo -e "Usage:\n$0 -d bod_database -t tag_name"
@@ -66,18 +65,18 @@ check_access() {
     fi
 
     # check database connection
-    if [[ -z $(${PSQL} -lqt -U www-data -d ${bod_database}) ]]; then
+    if [[ -z $(PSQL -lqt -U www-data -d ${bod_database}) ]]; then
         echo "something went wrong when trying to connect to ${bod_database} on pg-0.dev.bgdi.ch" >&2
         echo "please make sure that PGPASS and PGUSER Variables are set and the database name ${bod_database} is written correctly" >&2
         exit 1
     fi
 
     # check json queries
-    ${PSQL} -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layer_info}" 1>/dev/null
-    ${PSQL} -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_catalog}" 1>/dev/null
-    ${PSQL} -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layers_js}" 1>/dev/null
-    ${PSQL} -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_wmtsgetcap}" 1>/dev/null
-    ${PSQL} -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_topics}" 1>/dev/null
+    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layer_info}" 1>/dev/null
+    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_catalog}" 1>/dev/null
+    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layers_js}" 1>/dev/null
+    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_wmtsgetcap}" 1>/dev/null
+    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_topics}" 1>/dev/null
 }
 
 initialize_git() {
@@ -109,19 +108,19 @@ generate_json() {
 
     # json export
     # re3.view_bod_layer_info_de
-    ${PSQL} -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_layer_info_de.json
+    PSQL -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_layer_info_de.json
     # re3.view_catalog
-    ${PSQL} -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
+    PSQL -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
     # re3.view_layers_js
     rm bod_review/re3.view_layers_js/*.json -rf
-    ${PSQL} -U www-data -d $1 -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
+    PSQL -U www-data -d $1 -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
         echo ${Record[1]} | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js/${Record[0]}.json
     done
 
     # re3.view_bod_wmts_getcapabilities_de
-    ${PSQL} -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
+    PSQL -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
     # re3.topics
-    ${PSQL} -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json
+    PSQL -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json
 
     set +e
     git add .
@@ -133,6 +132,7 @@ generate_json() {
 
 # source this file until here
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
+source "${MY_DIR}/includes.sh"
 
 check_access
 initialize_git 2>&1
