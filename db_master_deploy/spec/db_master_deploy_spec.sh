@@ -746,3 +746,60 @@ Describe 'dml_trigger.sh'
   End
   mock_tear_down
 End
+Describe 'bod_review.sh'
+  mock_set_up
+  add_deploy_config
+  source_code ${deploy_config}
+  source_code includes.sh
+  source_code bod_review.sh
+  Describe 'check access'
+    bod_database="bod_master"
+    PSQL() {
+      echo "connection established"
+    }
+    Example 'checks passed'
+      When run check_access
+      The status should be success
+      The output should not be present
+    End
+    Example 'missing parameter'
+      unset bod_database
+      When run check_access
+      The status should be failure
+      The stderr should start with "missing a required parameter "
+    End
+    Example 'no database connection'
+      PSQL() {
+        :
+      }
+      When run check_access
+      The status should be failure
+      The stderr should start with "something went wrong when trying to connect to ${bod_database}"
+    End
+  End
+  Describe 'generate_json'
+    git() {
+      :
+    }
+    PSQL() {
+      :
+    }
+    test_generate_json() {
+      cd tmp
+      generate_json
+    }
+    python() {
+      :
+    }
+    Example 'check output'
+      When run test_generate_json
+      The status should be success
+      The output should not be present
+      The path tmp/bod_review/re3.topics.json should be empty file
+      The path tmp/bod_review/re3.view_bod_layer_info_de.json should be empty file
+      The path tmp/bod_review/re3.view_bod_wmts_getcapabilities_de.json should be empty file
+      The path tmp/bod_review/re3.view_catalog.json should be empty file
+    End
+  End
+  mock_tear_down
+End
