@@ -3,7 +3,6 @@ set -Ee
 set -o pipefail
 export LC_ALL=C
 USER=$(logname) # get user behind sudo su -
-
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
@@ -34,7 +33,7 @@ PG_DUMP() {
     pg_dump -h localhost "$@"
 }
 
-SSH="ssh -o StrictHostKeyChecking=no -F /dev/null -A"
+SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -A"
 
 # coloured output
 red='\e[0;31m'
@@ -182,7 +181,7 @@ check_env() {
 }
 
 # if sourced by deploy.sh
-if [[ "${BASH_SOURCE[1]}" == "deploy.sh" ]]; then
+if [[ "$(basename "${BASH_SOURCE[1]}")" == "deploy.sh" ]]; then
     SYSLOGPID="${PPID}..$$"
     redirect_output
 fi

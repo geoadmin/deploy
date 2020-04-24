@@ -41,7 +41,7 @@ tag_name="tag_${tag_name:-$bod_database}"
 # root branch will be used as reference branch
 root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
-git_dir=$(mktemp -d -p "${MY_DIR}/tmp"  "$(basename "$0")"_XXXXX)
+git_dir=$(mkdir -p "${MY_DIR}/tmp" && mktemp -d -p "${MY_DIR}/tmp"  "$(basename "$0")"_XXXXX)
 
 trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
 

@@ -198,7 +198,7 @@ bod_create_archive() {
             CREATEDB -O postgres --encoding 'UTF-8' -T "${source_db}" "${archive_bod}" >/dev/null
             PSQL -d template1 -c "COMMENT ON DATABASE ${archive_bod} IS 'snapshot/archive copy from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
             echo "bash bod_review.sh -d ${archive_bod} ..."
-            bash "${MY_DIR}/bod_review.sh" -d "${archive_bod}" 1>&5 2>&6
+            bash "${MY_DIR}/bod_review.sh" -d "${archive_bod}"
             if [[ ! -z "${ArchiveMode}" ]]; then
                 # skip rest of loop if we are in pure archive mode (bod-only)
                 return 1
@@ -290,9 +290,9 @@ copy_database() {
     REGEX="^bod_"
     if [[ ${source_db} =~ ${REGEX} ]]; then
         echo "bash bod_review.sh -d ${source_db} ..."
-        bash "${MY_DIR}/bod_review.sh" -d "${source_db}" 1>&5 2>&6
+        bash "${MY_DIR}/bod_review.sh" -d "${source_db}"
         echo "bash bod_review.sh -d ${target_db} ..."
-        bash "${MY_DIR}/bod_review.sh" -d "${target_db}" 1>&5 2>&6
+        bash "${MY_DIR}/bod_review.sh" -d "${target_db}"
     fi
 }
 
@@ -567,9 +567,9 @@ refreshsphinx=true
 CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
 START=$(date +%s%3N)
 attached_slaves=$(PSQL -qAt -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
-source "${MY_DIR}/includes.sh"
 
 echo "start ${COMMAND}"
+check_input
 # start loop and stop the script if db target is blocked by another db deploy
 write_lock
 
@@ -664,14 +664,14 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 # redirect customized stdout and stderr to standard ones
 if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
     (
-    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}" 1>&5 2>&6
+    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}"
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones
         (
-        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}" 1>&5 2>&6
+        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
         )
     fi
 fi
