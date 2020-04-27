@@ -519,7 +519,7 @@ EOF
       test_lock() {
         write_lock &
         write_lock
-        sleep 6
+        sleep 1
       }
       mock_write_lock
       Example 'target locked'
@@ -527,7 +527,6 @@ EOF
         The status should be success
         The stderr should not be present
         The line 1 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (0/3600) ..."
-        The line 2 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (5/3600) ..."
       End
       Example 'target not locked'
         When run write_lock
