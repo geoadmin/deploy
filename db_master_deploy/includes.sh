@@ -2,7 +2,7 @@
 set -Ee
 set -o pipefail
 export LC_ALL=C
-USER=$(logname) # get user behind sudo su -
+USER=$(whoami) # get user behind sudo su -
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
@@ -95,7 +95,7 @@ err() {
 #   integer
 #######################################
 Ceiling () {
-    python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
+    python -c "from math import ceil; print(int(ceil(float($1)/float($2))))"
 }
 
 #######################################

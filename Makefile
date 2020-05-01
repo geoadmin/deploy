@@ -1,7 +1,7 @@
 # Variables
 CURRENT_DIRECTORY := $(shell pwd)
 INSTALL_DIRECTORY := $(CURRENT_DIRECTORY)/.venv
-PYTHON_FILES := $(shell find * -path .venv/ -prune -o -type f -name "*.py" -print)
+PYTHON_FILES := $(shell find * -path .venv -prune -o -type f -name "*.py" -print)
 SHELLSPEC_VERSION := "0.20.2"
 
 # install git hook with heredoc needs the following option
