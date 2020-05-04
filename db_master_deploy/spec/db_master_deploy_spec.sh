@@ -517,6 +517,8 @@ EOF
         rm -rf "${mockdir}" || :
       }
       test_lock() {
+        flock -u 500 &> /dev/null || :
+        flock -o 500 &> /dev/null || :
         write_lock &
         write_lock
         sleep 1
