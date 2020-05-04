@@ -98,9 +98,9 @@ Ceiling () {
     DIVIDEND="${1}"
     DIVISOR="${2}"
     if [ $(( DIVIDEND % DIVISOR )) -gt 0 ]; then
-            RESULT=$(( ( ( $DIVIDEND - ( $DIVIDEND % $DIVISOR ) ) / $DIVISOR ) + 1 ))
+            RESULT=$(( ( ( DIVIDEND - ( DIVIDEND % DIVISOR ) ) / DIVISOR ) + 1 ))
     else
-            RESULT=$(( $DIVIDEND / $DIVISOR ))
+            RESULT=$(( DIVIDEND / DIVISOR ))
     fi
     echo "${RESULT}"
 }
@@ -116,7 +116,7 @@ Ceiling () {
 #######################################
 format_milliseconds() {
     seconds=$(($1/1000))
-    printf '%dh:%dm:%ds.%d - %d milliseconds\n' $((${seconds}/3600)) $((${seconds}%3600/60)) $((${seconds}%60)) $(($1 % 1000)) $1
+    printf '%dh:%dm:%ds.%d - %d milliseconds\n' $((seconds/3600)) $((seconds%3600/60)) $((seconds%60)) $(($1 % 1000)) "$1"
 }
 
 redirect_output() {
@@ -140,7 +140,7 @@ check_env() {
     # check for lock dir, create it if it does not exist
     readonly LOCK_DIR="${MY_DIR}/tmp.lock"
     readonly LOCK_FD=200
-    [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR} -p
+    [ -d "${LOCK_DIR}" ] || mkdir "${LOCK_DIR}" -p
 
     local failed=false
     # DB superuser, set and not empty

@@ -57,7 +57,7 @@ check_access() {
 
     # check if source database exists
     for i in "${array_source[@]}"; do
-        if [[ -z $(PSQL -lqt | egrep "\b${i}\b" 2> /dev/null) ]]; then
+        if ! PSQL -lqt | egrep -q "\b${i}\b"; then
             echo "No existing databases are named ${i}." >&2
             exit 1
         fi
@@ -83,24 +83,24 @@ process_dbs() {
         fi
         dumpfile=$(printf "%s%s.sql" "${git_dir}/" "${db}")
         echo "creating ddl dump ${dumpfile} of database ${db} in ${target} ..."
-        PG_DUMP -s -O ${target_db} | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > ${dumpfile}
+        PG_DUMP -s -O "${target_db}" | sed -r '/^CREATE VIEW/ {n ;  s/,/\n      ,/g;s/FROM/\n    FROM/g;s/LEFT JOIN/\n    LEFT JOIN/g;s/WHERE/\n    WHERE\n       /g;s/GROUP BY/\n    GROUP BY\n       /g;s/SELECT/\n    SELECT\n       /g}' > "${dumpfile}"
     done
 }
 
 
 initialize_git() {
-    git clone -b ${target} ${git_repo} ${git_dir}
+    git clone -b "${target}" ${git_repo} "${git_dir}"
 }
 
 
 update_git() {
-    cd ${git_dir}
+    cd "${git_dir}"
     echo "${TIMESTAMP} | User: ${USER} | DB: ${source_db} | COMMAND: ${COMMAND}" >> deploy.log
     # commit only if ddl of whole database has changed
     if git status --porcelain | grep -E "M|??" | grep ".sql$" > /dev/null; then
         git add .
         git commit -m "${TIMESTAMP} | User: ${USER} | DB: ${source_db} | COMMAND: ${COMMAND} auto commit of whole database deploy"
-        git push origin ${target}
+        git push origin "${target}"
     fi
 }
 

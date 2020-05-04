@@ -65,23 +65,23 @@ check_access() {
     fi
 
     # check database connection
-    if [[ -z $(PSQL -lqt -U www-data -d ${bod_database}) ]]; then
+    if [[ -z $(PSQL -lqt -U www-data -d "${bod_database}") ]]; then
         echo "something went wrong when trying to connect to ${bod_database} on pg-0.dev.bgdi.ch" >&2
         echo "please make sure that PGPASS and PGUSER Variables are set and the database name ${bod_database} is written correctly" >&2
         exit 1
     fi
 
     # check json queries
-    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layer_info}" 1>/dev/null
-    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_catalog}" 1>/dev/null
-    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_layers_js}" 1>/dev/null
-    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_wmtsgetcap}" 1>/dev/null
-    PSQL -U www-data -d ${bod_database} -qAt -c "EXPLAIN ${sql_topics}" 1>/dev/null
+    PSQL -U www-data -d "${bod_database}" -qAt -c "EXPLAIN ${sql_layer_info}" 1>/dev/null
+    PSQL -U www-data -d "${bod_database}" -qAt -c "EXPLAIN ${sql_catalog}" 1>/dev/null
+    PSQL -U www-data -d "${bod_database}" -qAt -c "EXPLAIN ${sql_layers_js}" 1>/dev/null
+    PSQL -U www-data -d "${bod_database}" -qAt -c "EXPLAIN ${sql_wmtsgetcap}" 1>/dev/null
+    PSQL -U www-data -d "${bod_database}" -qAt -c "EXPLAIN ${sql_topics}" 1>/dev/null
 }
 
 initialize_git() {
     # create temporary git folder from scratch and checkout
-    git clone ${git_repo} ${git_dir} && cd "${git_dir}"
+    git clone ${git_repo} "${git_dir}" && cd "${git_dir}"
 
     # checkout default branch
     git checkout prod 1>/dev/null
@@ -90,7 +90,7 @@ initialize_git() {
 
     # initialize root branch if it does not yet exists
     # root branch will be the root/default branch
-    if [ -z "$(git show-ref | grep -E "heads/${root_branch}$|origin/${root_branch}$")" ]; then
+    if ! git show-ref | grep -qE "heads/${root_branch}$|origin/${root_branch}$"; then
         echo "initializing ${root_branch} first..."
         git checkout --orphan ${root_branch}
         git rm . -rf 1>/dev/null
@@ -108,24 +108,24 @@ generate_json() {
 
     # json export
     # re3.view_bod_layer_info_de
-    PSQL -U www-data -d $1 -qAt -c "${sql_layer_info}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_layer_info_de.json
+    PSQL -U www-data -d "$1" -qAt -c "${sql_layer_info}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_layer_info_de.json
     # re3.view_catalog
-    PSQL -U www-data -d $1 -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
+    PSQL -U www-data -d "$1" -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
     # re3.view_layers_js
     rm bod_review/re3.view_layers_js/*.json -rf
-    PSQL -U www-data -d $1 -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
-        echo ${Record[1]} | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js/${Record[0]}.json
+    PSQL -U www-data -d "$1" -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
+        echo "${Record[1]}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js/"${Record[0]}".json
     done
 
     # re3.view_bod_wmts_getcapabilities_de
-    PSQL -U www-data -d $1 -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
+    PSQL -U www-data -d "$1" -qAt -c "${sql_wmtsgetcap}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_bod_wmts_getcapabilities_de.json
     # re3.topics
-    PSQL -U www-data -d $1 -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json
+    PSQL -U www-data -d "$1" -qAt -c "${sql_topics}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.topics.json
 
     set +e
     git add .
     git commit -m "${COMMAND} tag: ${tag_name} by $(logname)"
-    git tag ${tag_name} -f
+    git tag "${tag_name}" -f
     git push origin ${root_branch} --tags -f 2>&1
     set -e
 }
@@ -136,4 +136,4 @@ source "${MY_DIR}/includes.sh"
 
 check_access
 initialize_git 2>&1
-generate_json ${bod_database}
+generate_json "${bod_database}"
