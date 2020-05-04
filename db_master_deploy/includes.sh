@@ -95,7 +95,14 @@ err() {
 #   integer
 #######################################
 Ceiling () {
-    python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
+    DIVIDEND="${1}"
+    DIVISOR="${2}"
+    if [ $(( DIVIDEND % DIVISOR )) -gt 0 ]; then
+            RESULT=$(( ( ( $DIVIDEND - ( $DIVIDEND % $DIVISOR ) ) / $DIVISOR ) + 1 ))
+    else
+            RESULT=$(( $DIVIDEND / $DIVISOR ))
+    fi
+    echo "${RESULT}"
 }
 
 #######################################
