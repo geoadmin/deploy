@@ -516,16 +516,19 @@ EOF
       mock_tear_down() {
         rm -rf "${mockdir}" || :
       }
-      test_lock() {
-        flock -u 500 &> /dev/null || :
-        flock -o 500 &> /dev/null || :
-        write_lock &
-        write_lock
-        sleep 1
+      test_write_lock() {
+        lock() {
+            # simulate lock
+            return 1
+        }
+        # run write_lock in the background
+        ( write_lock ) & pid=$!
+        # kill write_lock looper after 1 second
+        ( sleep 1 && kill -9 $pid ) &
       }
       mock_write_lock
       Example 'target locked'
-        When run test_lock
+        When run test_write_lock
         The status should be success
         The stderr should not be present
         The line 1 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (0/3600) ..."
