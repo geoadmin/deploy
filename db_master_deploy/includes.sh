@@ -1,15 +1,13 @@
 #!/bin/bash
 set -Ee
 set -o pipefail
-USER=$(logname) # get user behind sudo su - 
-
+export LC_ALL=C
+USER=$(logname) # get user behind sudo su -
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
 SYSLOGPID=$$
-if [[ ${PARENT_COMMAND} == *deploy.sh ]]; then
-    SYSLOGPID="${PPID}..$$"
-fi
+
 comment="manual db deploy"
 if [ "${message}" ]; then
     comment="${message}"
@@ -19,6 +17,23 @@ INFO="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - INFO"
 ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
+PSQL() {
+    psql -X -h localhost "$@"
+}
+
+DROPDB() {
+    dropdb -h localhost "$@"
+}
+
+CREATEDB() {
+   createdb -h localhost "$@"
+}
+
+PG_DUMP() {
+    pg_dump -h localhost "$@"
+}
+
+SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -A"
 
 # coloured output
 red='\e[0;31m'
@@ -45,7 +60,7 @@ log () {
         echo "INFO: $1${data}"
         echo "$1${data}" >&40
     done
-    exec 40>&- 
+    exec 40>&-
 }
 
 #######################################
@@ -64,8 +79,8 @@ err() {
     do
         echo -e "${red}ERROR: $1${data}${NC}" >&2
         echo "$1${data}" >&40
-    done    
-    exec 40>&- 
+    done
+    exec 40>&-
 }
 
 #######################################
@@ -80,7 +95,14 @@ err() {
 #   integer
 #######################################
 Ceiling () {
-  python -c "from math import ceil; print int(ceil(float($1)/float($2)))"
+    DIVIDEND="${1}"
+    DIVISOR="${2}"
+    if [ $(( DIVIDEND % DIVISOR )) -gt 0 ]; then
+            RESULT=$(( ( ( DIVIDEND - ( DIVIDEND % DIVISOR ) ) / DIVISOR ) + 1 ))
+    else
+            RESULT=$(( DIVIDEND / DIVISOR ))
+    fi
+    echo "${RESULT}"
 }
 
 #######################################
@@ -94,30 +116,33 @@ Ceiling () {
 #######################################
 format_milliseconds() {
     seconds=$(($1/1000))
-    printf '%dh:%dm:%ds.%d - %d milliseconds\n' $((${seconds}/3600)) $((${seconds}%3600/60)) $((${seconds}%60)) $(($1 % 1000)) $1
+    printf '%dh:%dm:%ds.%d - %d milliseconds\n' $((seconds/3600)) $((seconds%3600/60)) $((seconds%60)) $(($1 % 1000)) "$1"
 }
 
-exec 5>&1
-exec 6>&2
-# stdout to log function
-exec 1> >(log)
-# stdout to err function
-exec 2> >(err)
+redirect_output() {
+    exec 5>&1
+    exec 6>&2
+    # stdout to log function
+    exec 1> >(log)
+    # stdout to err function
+    exec 2> >(err)
+}
 
 # check environment variables
 check_env() {
     # check for deploy.cfg, if exists read variables from file
-    MY_DIR=$(dirname $(readlink -f $0))
-    if [[ -f "${MY_DIR}/deploy.cfg" ]]; then 
+    MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+    if [[ -f "${MY_DIR}/deploy.cfg" ]]; then
         source "${MY_DIR}/deploy.cfg"
     fi
 
     # check for lock dir, create it if it does not exist
     readonly LOCK_DIR="${MY_DIR}/tmp.lock"
     readonly LOCK_FD=200
-    [ -d ${LOCK_DIR} ] || mkdir ${LOCK_DIR}
+    [ -d "${LOCK_DIR}" ] || mkdir "${LOCK_DIR}" -p
 
-    failed=false
+    local failed=false
     # DB superuser, set and not empty
     if [[ -z "${PGUSER}" ]]; then
         echo 'export env variable containing DB Superuser name: $ export PGUSER=xxx' >&2
@@ -137,7 +162,7 @@ check_env() {
     if [[ -z "${SPHINX_PROD}" ]]; then
         echo 'export env variable containing SPHINX PROD ip address (space delimiter): $ export SPHINX_PROD="ipaddress1 ipaddress2"' >&2
         failed=true
-    fi   
+    fi
     # SPHINX DEMO, has to be set, can be empty
     if [[ -z "${SPHINX_DEMO}" ]]; then
         echo 'export env variable containing SPHINX DEMO ip address (space delimiter): $ export SPHINX_DEMO="ipaddress1 ipaddress2"' >&2
@@ -151,17 +176,19 @@ check_env() {
         PUBLISHED_SLAVES='.*'
     fi
     if [[ "${failed}" = true ]];then
-        echo "you can set the variables in ${MY_DIR}/deploy.cfg" 
+        echo "you can set the variables in ${MY_DIR}/deploy.cfg" >&2
+        exit 1
+    fi
+    # force geodata
+    if [[ $(whoami) != "geodata" ]];
+    then
+        echo "This script must be run as geodata!" >&2
         exit 1
     fi
 }
 
-# check for env variables
-check_env
-
-# force geodata
-if [[ $(whoami) != "geodata" ]]; 
-then 
-    echo "This script must be run as geodata!" >&2
-    exit 1
+# if sourced by deploy.sh
+if [[ "$(basename "${BASH_SOURCE[1]}")" == "deploy.sh" ]]; then
+    SYSLOGPID="${PPID}..$$"
+    redirect_output
 fi

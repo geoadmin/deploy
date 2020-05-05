@@ -10,4 +10,5 @@ revision2integrationwithsnapshot.sh
 revision2prod.sh
 swisstopo2integrationwithsnapshot.sh
 swisstopo2prod.sh
-
+.venv
+*/tmp*/
