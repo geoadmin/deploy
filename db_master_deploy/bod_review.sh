@@ -124,7 +124,7 @@ generate_json() {
 
     set +e
     git add .
-    git commit -m "${COMMAND} tag: ${tag_name} by $(logname)"
+    git commit -m "${COMMAND} tag: ${tag_name} by $(whoami)"
     git tag "${tag_name}" -f
     git push origin ${root_branch} --tags -f 2>&1
     set -e
