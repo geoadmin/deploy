@@ -56,12 +56,14 @@ check_access() {
     fi
 
     # check if source database exists
+    set +o pipefail
     for i in "${array_source[@]}"; do
-        if ! PSQL -lqt | egrep -q "\b${i}\b"; then
+        if ! PSQL -lqt | egrep -qE "\b${i}\b"; then
             echo "No existing databases are named ${i}." >&2
             exit 1
         fi
     done
+    set -o pipefail
 
     # demo target will not be versionized
     if [[ ${target} == "demo" ]]; then
