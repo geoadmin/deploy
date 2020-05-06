@@ -64,23 +64,26 @@ done
 #######################################
 check_table() {
     check_table_source() {
+        set +o pipefail
         # check if source table exists, views cannot be deployed
         if ! PSQL -lqt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${source_db}" 2> /dev/null | egrep -q "\b${source_id}\b"; then
             echo "source table does not exist ${source_id} " >&2
             exit 1
         fi
+        set -o pipefail
     }
 
     check_table_target() {
         # check if target table exists
+        set +o pipefail
         if ! PSQL -lqt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${target_db}" 2> /dev/null | egrep -q "\b${target_id}\b"; then
             "target table does not exist ${target_id}." >&2
             exit 1
         fi
+        set -o pipefail
     }
 
     check_table_schema() {
-        set -o pipefail
         # check if source and target table have the same structure (column name and data type)
         source_columns=$(PSQL -d "${source_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' order by 1;")
         columns=$(PSQL -d "${source_db}" -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command
@@ -338,7 +341,9 @@ copy_table() {
     echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}"
 
     echo "drop indexes on ${target_id}"
+    set +o pipefail
     ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | PSQL -d "${target_db}"  2>/dev/null ) || true
+    set -o pipefail
 
     # populate array with foreign key constraints on target table
     declare -A foreign_keys=( )
@@ -375,7 +380,9 @@ copy_table() {
     )
 
     echo "create indexes on ${target_id}"
+    set +o pipefail
     ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -X -h localhost -d $@ -c "{}"' -- "${target_db}" ) || true
+    set -o pipefail
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
         for i in "${!foreign_keys[@]}"
