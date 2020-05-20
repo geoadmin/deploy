@@ -569,8 +569,9 @@ source "${MY_DIR}/includes.sh"
 check_env
 
 # global and default values
-refreshmatviews=true
-refreshsphinx=true
+refreshmatviews=${refreshmatviews:-true}
+refreshsphinx=${refreshsphinx:-true}
+
 CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
 START=$(date +%s%3N)
 attached_slaves=$(PSQL -qAt -d postgres -c "SELECT count(1) from pg_stat_replication where state IN ('streaming') and client_addr::text ~* '${PUBLISHED_SLAVES}';")
