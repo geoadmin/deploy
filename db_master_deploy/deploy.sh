@@ -89,12 +89,14 @@ check_table() {
         columns=$(PSQL -d "${source_db}" -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command
         target_columns=$(PSQL -d "${target_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}' order by 1;")
         if [ ! "${source_columns}" == "${target_columns}" ]; then
-            echo "structure of source and target table is different." >&2
-            sleep 1; echo "debug output" >&5
-            printf "%-69s %-70s\n" "${source_db}.${source_schema}.${source_table}" "${target_db}.${target_schema}.${target_table}" >&5
-            printf '%140s\n' | tr ' ' - >&5
-            pr -w 140 -m -t <( echo "${source_columns}" ) <( echo "${target_columns}" ) >&5
-            diff <( echo "${source_columns}" ) <( echo "${target_columns}" ) | colordiff >&5
+            {
+            echo "structure of source and target table is different."
+            sleep 1; echo "debug output"
+            printf "%-69s %-70s\n" "${source_db}.${source_schema}.${source_table}" "${target_db}.${target_schema}.${target_table}"
+            printf '%140s\n' | tr ' ' -
+            pr -w 140 -m -t <( echo "${source_columns}" ) <( echo "${target_columns}" )
+            diff <( echo "${source_columns}" ) <( echo "${target_columns}" ) | colordiff
+            } >&2
             exit 1
         fi
     }
