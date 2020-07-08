@@ -383,7 +383,7 @@ copy_table() {
 
     echo "create indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -X -h ${AURORA_WRITER_HOST} -d $@ -c "{}"' -- "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c 'psql -X -h "${AURORA_WRITER_HOST}" -d $@ -c "{}"' -- "${target_db}" ) || true
     set -o pipefail
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
@@ -634,6 +634,8 @@ if [ "${#array_matviews[@]}" -gt "0" ]; then
     array_matviews=($(printf "%s\n" "${array_matviews[@]}" | sort -u));
     update_materialized_views table_commit
 fi
+
+echo "master has been updated in $(format_milliseconds $((END-START)))"
 
 # concatenate arrays for dml and ddl trigger
 source_db=$(IFS=, ; echo "${array_source_db[*]}")
