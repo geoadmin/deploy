@@ -34,7 +34,6 @@ default_env() {
   SPHINX_INT="ip-int"
   SPHINX_PROD="ip-prod-1 ip-prod-2"
   SPHINX_DEMO="ip-demo"
-  PUBLISHED_SLAVES="ip-1|ip-2|ip-3|ip-4"
 }
 
 add_deploy_config() {
@@ -44,8 +43,6 @@ export SPHINX_DEMO="10.220.4.145" #DEMO == DEV since at the moment not demo inst
 export SPHINX_INT="10.220.5.245"
 export SPHINX_PROD="10.220.5.253 10.220.6.26"
 export PGUSER=pgkogis
-#                        <-------pg.bgdi.ch------> <--pg-sandbox.bgdi.ch-->
-export PUBLISHED_SLAVES="10.220.5.122|10.220.6.137|10.220.5.87|10.220.6.129"
 EOF
 }
 
@@ -55,7 +52,6 @@ reset_env() {
   unset SPHINX_INT
   unset SPHINX_PROD
   unset SPHINX_DEMO
-  unset PUBLISHED_SLAVES
 }
 
 source_code() {
@@ -159,15 +155,6 @@ Describe 'includes.sh'
       When run check_env
       The status should be failure
       The stderr should include 'export SPHINX_DEMO='
-      mock_tear_down
-    End
-    Example 'missed PUBLISHED_SLAVES'
-      mock_set_up
-      default_env
-      unset PUBLISHED_SLAVES
-      When call check_env
-      The status should be success
-      The variable PUBLISHED_SLAVES should eq '.*'
       mock_tear_down
     End
     Example 'wrong user'

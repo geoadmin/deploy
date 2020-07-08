@@ -168,13 +168,6 @@ check_env() {
         echo 'export env variable containing SPHINX DEMO ip address (space delimiter): $ export SPHINX_DEMO="ipaddress1 ipaddress2"' >&2
         failed=true
     fi
-    # PUBLISHED SLAVES set to default value if empty
-    # pipe delimited list of published slaves ips p.e. "ip1|ip2|ip3"
-    # the deploy script will wait for these slaves to by in-sync before starting the dml (sphinx) trigger
-    # normally these list should contain the ip's behind pg-sandbox.bgdi.ch and pg.bgdi.ch, default value is '.*' = all slaves
-    if [[ -z "${PUBLISHED_SLAVES}" ]];then
-        PUBLISHED_SLAVES='.*'
-    fi
     if [[ "${failed}" = true ]];then
         echo "you can set the variables in ${MY_DIR}/deploy.cfg" >&2
         exit 1
