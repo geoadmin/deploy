@@ -6,6 +6,7 @@ USER=$(logname) # get user behind sudo su -
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
+AURORA_WRITER_HOST="database-1.cluster-cykjz246bryn.eu-west-1.rds.amazonaws.com"
 SYSLOGPID=$$
 
 comment="manual db deploy"
@@ -18,19 +19,19 @@ ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
 PSQL() {
-    psql -X -h localhost "$@"
+    psql -X -h ${AURORA_WRITER_HOST} "$@"
 }
 
 DROPDB() {
-    dropdb -h localhost "$@"
+    dropdb -h ${AURORA_WRITER_HOST} "$@"
 }
 
 CREATEDB() {
-   createdb -h localhost "$@"
+   createdb -h ${AURORA_WRITER_HOST} "$@"
 }
 
 PG_DUMP() {
-    pg_dump -h localhost "$@"
+    pg_dump -h ${AURORA_WRITER_HOST} "$@"
 }
 
 SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -A"
