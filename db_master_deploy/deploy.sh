@@ -66,7 +66,7 @@ check_table() {
     check_table_source() {
         set +o pipefail
         # check if source table exists, views cannot be deployed
-        if ! PSQL -lqt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${source_db}" 2> /dev/null | egrep -q "\b${source_id}\b"; then
+        if ! PSQL -qAt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${source_db}" 2> /dev/null | egrep -q "\b${source_id}\b"; then
             echo "source table does not exist ${source_id} " >&2
             exit 1
         fi
@@ -76,8 +76,8 @@ check_table() {
     check_table_target() {
         # check if target table exists
         set +o pipefail
-        if ! PSQL -lqt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${target_db}" 2> /dev/null | egrep -q "\b${target_id}\b"; then
-            "target table does not exist ${target_id}." >&2
+        if ! PSQL -qAt -c "SELECT table_catalog||'.'||table_schema||'.'||table_name FROM information_schema.tables where lower(table_type) not like 'view'" -d "${target_db}" 2> /dev/null | egrep -q "\b${target_id}\b"; then
+            echo "target table does not exist ${target_id}." >&2
             exit 1
         fi
         set -o pipefail
