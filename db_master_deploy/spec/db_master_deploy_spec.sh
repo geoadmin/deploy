@@ -531,7 +531,7 @@ EOF
         When run test_write_lock
         The status should be success
         The stderr should not be present
-        The line 1 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (0/3600) ..."
+        The line 1 of output should eq "target db bod_dev is locked, waiting for deploy process to finish (0/7200) ..."
       End
       Example 'target not locked'
         When run write_lock

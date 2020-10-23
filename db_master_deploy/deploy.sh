@@ -419,7 +419,7 @@ copy_table() {
 #   None
 #######################################
 write_lock() {
-    local timeout=3600  # max retry interval in seconds
+    local timeout=7200  # max retry interval in seconds
     local counter=0
     local increment=5   # check every n seconds
     local status=0
