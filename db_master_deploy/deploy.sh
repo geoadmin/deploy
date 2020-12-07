@@ -13,7 +13,8 @@ display_usage() {
     echo -e "\t-t target staging - mandatory choose one of 'dev int prod demo tile'"
     echo -e "\t-r refresh materialized views true|false - Optional, default: true'"
     echo -e "\t-d refresh sphinx indexes true|false - Optional, default: true'"
-    echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
+    echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod"
+    echo -e "\t-y is optional. It deactivates the interaction to the question, if the user is sure about not taking a master db as a source\n"
 }
 
 while getopts ":s:t:a:m:r:d:y" options; do
