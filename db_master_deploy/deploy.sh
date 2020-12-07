@@ -16,7 +16,7 @@ display_usage() {
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod\n"
 }
 
-while getopts ":s:t:a:m:r:d:" options; do
+while getopts ":s:t:a:m:r:d:y" options; do
     case "${options}" in
         s)
             source_objects=${OPTARG}
@@ -37,6 +37,10 @@ while getopts ":s:t:a:m:r:d:" options; do
         d)
             refreshsphinx=${OPTARG}
             ;;
+        y)
+            forcedeploy=true
+            ;;
+
         *)
             display_usage
             exit 1
@@ -231,6 +235,8 @@ check_source() {
         echo "You may not copy a db or table over itself. You have '${source_db}' as source, with target '${target}'." >&2
         exit 1
     fi
+    # dont ask for confirmation if script has been called wit -y flag
+    [[ "${forcedeploy+x}" ]] && return 0
 
     #check if master is the source and, if not, ask for confirmation but only once
     if [[ ! ${source_db} == *_master ]]; then
