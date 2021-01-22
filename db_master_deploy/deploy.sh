@@ -383,7 +383,7 @@ copy_table() {
 
     echo "create indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${AURORA_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${RDS_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
     set -o pipefail
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
@@ -652,7 +652,7 @@ if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones
         (
-        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
+        [[ ! ${target} == tile ]] && echo  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
         )
     fi
 fi
