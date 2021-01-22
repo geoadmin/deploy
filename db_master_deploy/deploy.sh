@@ -652,7 +652,7 @@ if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones
         (
-        [[ ! ${target} == tile ]] && echo  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
+        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
         )
     fi
 fi
