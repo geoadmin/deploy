@@ -6,6 +6,7 @@ USER=$(logname) # get user behind sudo su -
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
+RDS_WRITER_HOST="master.chtopodb.bgdi.ch"
 SYSLOGPID=$$
 
 comment="manual db deploy"
@@ -18,19 +19,19 @@ ERROR="${0##*/} - ${USER} - ${comment} - [${SYSLOGPID}] - ERROR"
 
 COMMAND="${0##*/} $* (pid: $$)"
 PSQL() {
-    psql -X -h localhost "$@"
+    psql -X -h ${RDS_WRITER_HOST} "$@"
 }
 
 DROPDB() {
-    dropdb -h localhost "$@"
+    dropdb -h ${RDS_WRITER_HOST} "$@"
 }
 
 CREATEDB() {
-   createdb -h localhost "$@"
+   createdb -h ${RDS_WRITER_HOST} "$@"
 }
 
 PG_DUMP() {
-    pg_dump -h localhost "$@"
+    pg_dump -h ${RDS_WRITER_HOST} "$@"
 }
 
 SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -A"
@@ -167,13 +168,6 @@ check_env() {
     if [[ -z "${SPHINX_DEMO}" ]]; then
         echo 'export env variable containing SPHINX DEMO ip address (space delimiter): $ export SPHINX_DEMO="ipaddress1 ipaddress2"' >&2
         failed=true
-    fi
-    # PUBLISHED SLAVES set to default value if empty
-    # pipe delimited list of published slaves ips p.e. "ip1|ip2|ip3"
-    # the deploy script will wait for these slaves to by in-sync before starting the dml (sphinx) trigger
-    # normally these list should contain the ip's behind pg-sandbox.bgdi.ch and pg.bgdi.ch, default value is '.*' = all slaves
-    if [[ -z "${PUBLISHED_SLAVES}" ]];then
-        PUBLISHED_SLAVES='.*'
     fi
     if [[ "${failed}" = true ]];then
         echo "you can set the variables in ${MY_DIR}/deploy.cfg" >&2
