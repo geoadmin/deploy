@@ -1,6 +1,6 @@
 database managment scripts
 ==========================
-These scripts have been developped for the database and table duplication on the postgres master instance.
+These scripts have been developped for the database and table duplication on a debian instance with postgresql-client package installed.
 The scripts have to be executed with ``geodata`` user. To become geodata you have to type:
 ```bash
 $ sudo su - geodata
