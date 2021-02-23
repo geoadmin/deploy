@@ -652,7 +652,7 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 # redirect customized stdout and stderr to standard ones
 if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
     (
-    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}"
+    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}" || :
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
