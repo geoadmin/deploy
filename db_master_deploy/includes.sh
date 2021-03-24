@@ -34,7 +34,7 @@ PG_DUMP() {
     pg_dump -h ${RDS_WRITER_HOST} "$@"
 }
 
-SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -A"
+SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -o LogLevel=ERROR -A"
 
 # coloured output
 red='\e[0;31m'
