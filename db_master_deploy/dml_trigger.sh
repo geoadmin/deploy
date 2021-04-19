@@ -84,16 +84,44 @@ update_sphinx() {
     do
         echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
         ${SSH} -T "${sphinx}" /bin/bash << HERE
+                start_sphinx() {
+                    sudo -u root systemctl start sphinxsearch || { echo "systemctl start was not successful, checking searchd --status instead ..."; };
+                    wait 1;
+                    searchd --status;
+                    return \$?;
+                }
+
+                retry() {
+                # retry function or command some times
+                # \$1: mandatory command or function
+                    local retry=0
+                    local maxRetries=5
+                    local retryInterval=100
+                    local function="\$1"
+                    local return_code=0
+                    until [ \${retry} -ge "\${maxRetries}" ]
+                    do
+                        eval "\${function}" 2> /dev/null && break
+                        return_code=\$?
+                        retry=\$((retry+1))
+                        echo "Retrying '\${function}' [\${retry}/\${maxRetries}] in \${retryInterval}(s) "
+                        sleep "\${retryInterval}"
+                    done
+
+                    if [ \${retry} -ge "\${maxRetries}" ]; then
+                      eval "\${function}"
+                      return_code=\$?
+                      >&2 echo "Failed '\${function}' after \${maxRetries} attempts with return code \${return_code}!"
+                      exit 1
+                    fi
+                }
+
                 if [ -f ${SPHINX_CONFIG} ]; then
                     # silent check of service status, if searchd is not responding stop and start systemctl and searchd
                     if  ! searchd --status  &> /dev/null
                     then
                         echo "sphinx service was not running, trying to start sphinx service on host ${sphinx}"
-                        sudo -u sphinxsearch searchd --stop &> /dev/null || :
-                        sudo -u root systemctl stop sphinxsearch &> /dev/null || :
-                        sleep 5
-                        sudo -u root systemctl start sphinxsearch
-                        sleep 5
+                        retry 'start_sphinx'
                     fi
                     echo "sphinx service status on host ${sphinx}:"
                     # exit with error if service is still not running
