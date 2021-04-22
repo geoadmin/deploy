@@ -85,8 +85,14 @@ update_sphinx() {
         echo "opening ssh connection to ${target} sphinx host: ${sphinx} ..."
         ${SSH} -T "${sphinx}" /bin/bash << HERE
                 start_sphinx() {
-                    sudo -u root systemctl start sphinxsearch || { echo "systemctl start was not successful, checking searchd --status instead ..."; };
-                    wait 1;
+                    echo "stopping sphinx with systemctl and searchd..."
+                    searchd --status &> /dev/null || sudo -u root systemctl stop sphinxsearch &> /dev/null
+                    searchd --status &> /dev/null || sudo -u sphinxsearch searchd --stopwait &> /dev/null
+                    sleep 2
+                    echo "starting sphinx with systemctl and searchd..."
+                    sudo -u root systemctl start sphinxsearch
+                    sudo -u sphinxsearch searchd &> /dev/null
+                    sleep 2;
                     searchd --status;
                     return \$?;
                 }
