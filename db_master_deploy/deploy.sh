@@ -279,9 +279,9 @@ copy_database() {
     fi
 
     echo "replacing ${target_db} with ${target_db_tmp} ..."
-    PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db_tmp}';" >/dev/null
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db}';" >/dev/null
     DROPDB --if-exists "${target_db}" &>/dev/null
+    PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db_tmp}';" >/dev/null
     PSQL -d template1 -c "alter database ${target_db_tmp} rename to ${target_db};" >/dev/null
 
     # add some metainformation to the copied database as comment
