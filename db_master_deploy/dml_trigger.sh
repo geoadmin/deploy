@@ -22,8 +22,7 @@ while getopts ":s:t:" options; do
             target=${OPTARG}
             ;;
         s)
-            # convert commas to spaces
-            tables=${OPTARG//,/ }
+            tables=${OPTARG}
             ;;
         \? )
             display_usage
@@ -133,11 +132,8 @@ update_sphinx() {
                     # exit with error if service is still not running
                     searchd --status &> /dev/null || { echo "Sphinx Service is not running on host ${sphinx}" >&2; searchd --status >&2; exit 1; }
                     # update indexes
-                    for table in ${tables}
-                    do
-                        echo "  update sphinx indexes that use the database source: \${table} ..."
-                        python -u ${SPHINX_PG_TRIGGER} -d \${table} -c update -s ${SPHINX_CONFIG}
-                    done
+                    echo "  update sphinx indexes that use the database source: ${tables} ..."
+                    python -u ${SPHINX_PG_TRIGGER} -d ${tables} -c update -s ${SPHINX_CONFIG}
                     sleep 2
                 else
                     echo "could not open sphinx config: ${SPHINX_CONFIG}" >&2
