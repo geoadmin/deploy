@@ -11,9 +11,9 @@ SPHINX_PG_TRIGGER="/etc/sphinxsearch/pg2sphinx_trigger.py"
 SPHINX_CONFIG="/etc/sphinxsearch/sphinx.conf"
 
 display_usage() {
-    echo -e "Usage:\n$0 -t tables/databases -s staging"
-    echo -e "\t-s comma delimited list of tables and/or databases - mandatory"
-    echo -e "\t-t target staging - mandatory choose one of '${targets}'"
+    echo -e "Usage:\\n$0 -t tables/databases -s staging"
+    echo -e "\\t-s comma delimited list of tables and/or databases - mandatory"
+    echo -e "\\t-t target staging - mandatory choose one of '${targets}'"
 }
 
 while getopts ":s:t:" options; do
@@ -66,6 +66,7 @@ check_arguments() {
             ;;
 
         *)
+            # shellcheck disable=SC2154
             echo "there is no sphinx host defined for staging ${staging}" >&2
             exit 1
     esac
@@ -145,6 +146,7 @@ HERE
 
 # source script until here
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
+# shellcheck source=./includes.sh
 source "${MY_DIR}/includes.sh"
 check_env
 
