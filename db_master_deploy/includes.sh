@@ -34,8 +34,6 @@ PG_DUMP() {
     pg_dump -h ${RDS_WRITER_HOST} "$@"
 }
 
-SSH="ssh -i /home/geodata/.ssh/id_rsa_new -o StrictHostKeyChecking=no -F /dev/null -o LogLevel=ERROR -A"
-
 # coloured output
 red='\e[0;31m'
 NC='\e[0m' # No Color
@@ -147,26 +145,6 @@ check_env() {
     # DB superuser, set and not empty
     if [[ -z "${PGUSER}" ]]; then
         echo 'export env variable containing DB Superuser name: $ export PGUSER=xxx' >&2
-        failed=true
-    fi
-    # SPHINX DEV, set and not empty
-    if [[ -z "${SPHINX_DEV}" ]]; then
-        echo 'export env variable containing SPHINX DEV ip address (space delimiter): $ export SPHINX_DEV="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # SPHINX INT, set and not empty
-    if [[ -z "${SPHINX_INT}" ]]; then
-        echo 'export env variable containing SPHINX INT ip address (space delimiter): $ export SPHINX_INT="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # SPHINX PROD, set and not empty
-    if [[ -z "${SPHINX_PROD}" ]]; then
-        echo 'export env variable containing SPHINX PROD ip address (space delimiter): $ export SPHINX_PROD="ipaddress1 ipaddress2"' >&2
-        failed=true
-    fi
-    # SPHINX DEMO, has to be set, can be empty
-    if [[ -z "${SPHINX_DEMO}" ]]; then
-        echo 'export env variable containing SPHINX DEMO ip address (space delimiter): $ export SPHINX_DEMO="ipaddress1 ipaddress2"' >&2
         failed=true
     fi
     if [[ "${failed}" = true ]];then
