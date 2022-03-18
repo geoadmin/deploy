@@ -30,28 +30,16 @@ whoami() {
 
 default_env() {
   PGUSER="www-data"
-  SPHINX_DEV="ip-dev"
-  SPHINX_INT="ip-int"
-  SPHINX_PROD="ip-prod-1 ip-prod-2"
-  SPHINX_DEMO="ip-demo"
 }
 
 add_deploy_config() {
   cat << EOF > ${deploy_config}
-export SPHINX_DEV="10.220.4.141"
-export SPHINX_DEMO="10.220.4.145" #DEMO == DEV since at the moment not demo instance is active
-export SPHINX_INT="10.220.5.245"
-export SPHINX_PROD="10.220.5.253 10.220.6.26"
 export PGUSER=pgkogis
 EOF
 }
 
 reset_env() {
   unset PGUSER
-  unset SPHINX_DEV
-  unset SPHINX_INT
-  unset SPHINX_PROD
-  unset SPHINX_DEMO
 }
 
 source_code() {
@@ -119,42 +107,6 @@ Describe 'includes.sh'
       When run check_env
       The status should be failure
       The stderr should include 'export PGUSER=xxx'
-      mock_tear_down
-    End
-    Example 'missed SPHINX_DEV'
-      mock_set_up
-      default_env
-      unset SPHINX_DEV
-      When run check_env
-      The status should be failure
-      The stderr should include 'export SPHINX_DEV='
-      mock_tear_down
-    End
-    Example 'missed SPHINX_INT'
-      mock_set_up
-      default_env
-      unset SPHINX_INT
-      When run check_env
-      The status should be failure
-      The stderr should include 'export SPHINX_INT='
-      mock_tear_down
-    End
-    Example 'missed SPHINX_PROD'
-      mock_set_up
-      default_env
-      unset SPHINX_PROD
-      When run check_env
-      The status should be failure
-      The stderr should include 'export SPHINX_PROD='
-      mock_tear_down
-    End
-    Example 'missed SPHINX_DEMO'
-      mock_set_up
-      default_env
-      unset SPHINX_DEMO
-      When run check_env
-      The status should be failure
-      The stderr should include 'export SPHINX_DEMO='
       mock_tear_down
     End
     Example 'wrong user'
@@ -726,12 +678,6 @@ Describe 'dml_trigger.sh'
       target="invalid_target"
       When run check_arguments
       The stderr should start with "valid deploy targets are:"
-      The status should be failure
-    End
-    Example 'missing sphinx host'
-      unset SPHINX_DEV
-      When run check_arguments
-      The stderr should eq "please define a sphinx host for ${target}"
       The status should be failure
     End
   End
