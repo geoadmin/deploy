@@ -100,7 +100,7 @@ update_sphinx() {
                 # retry function or command some times
                 # \$1: mandatory command or function
                     local retry=0
-                    local maxRetries=5
+                    local maxRetries=10
                     local retryInterval=100
                     local function="\$1"
                     local return_code=0
@@ -151,8 +151,8 @@ check_env
 check_arguments
 
 START_DML=$(date +%s%3N)
-echo "start ${COMMAND}"
+echo "$(date +"[%F %T]") start ${COMMAND}"
 check_arguments
 update_sphinx
 END_DML=$(date +%s%3N)
-echo "finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
+echo "$(date +"[%F %T]") finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
