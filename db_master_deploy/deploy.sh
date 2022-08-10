@@ -585,7 +585,7 @@ refreshsphinx=${refreshsphinx:-true}
 CPUS=$(grep -c "processor" < /proc/cpuinfo) || CPUS=1
 START=$(date +%s%3N)
 
-echo "start ${COMMAND}"
+echo "$(date +"[%F %T]") start ${COMMAND}"
 check_input
 # start loop and stop the script if db target is blocked by another db deploy
 write_lock
@@ -666,4 +666,4 @@ if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
 fi
 
 END_trigger=$(date +%s%3N)
-echo "finished ${COMMAND} in $(format_milliseconds $((END_trigger-START)))"
+echo "$(date +"[%F %T]") finished ${COMMAND} in $(format_milliseconds $((END_trigger-START)))"

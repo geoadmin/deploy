@@ -118,9 +118,9 @@ check_env
 check_arguments
 
 START_DML=$(date +%s%3N)
-echo "start ${COMMAND}"
+echo "$(date +"[%F %T]") start ${COMMAND}"
 check_arguments
 get_sphinx_image_tag "${target}"
 update_sphinx
 END_DML=$(date +%s%3N)
-echo "finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
+echo "$(date +"[%F %T]") finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
