@@ -4,7 +4,7 @@
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shpinxsearch deploy scripts
+# shpinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
 SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-sphinxsearch.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-sphinxsearch"
