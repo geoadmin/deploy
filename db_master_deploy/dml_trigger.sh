@@ -5,7 +5,7 @@
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shpinxsearch deploy scripts
-SEARCH_GITHUB_BRANCH="develop-docker" # rename to master after migration to frankfurt
+SEARCH_GITHUB_BRANCH="master"
 SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-sphinxsearch.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-sphinxsearch"
 
@@ -86,6 +86,8 @@ get_sphinx_image_tag() {
     # and saves the tag in the global variable SPHINX_IMAGE_TAG
     ########################################
     local staging=$1
+    initialize_git "${VHOST_GITHUB_FOLDER}" "${VHOST_GITHUB_REPO}" "${VHOST_GITHUB_BRANCH}" || :
+
     if image_tag=$(grep SERVICE_SEARCH_SPHINX_DOCKER_IMAGE_TAG "${VHOST_GITHUB_FOLDER}/systems/api3/service-search/${staging}/${staging}.env"); then
         mapfile -td = fields < <(printf "%s\\0" "${image_tag}")
         SPHINX_IMAGE_TAG="${fields[1]}"
@@ -102,7 +104,6 @@ update_sphinx() {
     ########################################
     echo "Updating sphinx indexes on ${target} with db pattern ${tables} using sphinx image: ${SPHINX_IMAGE_TAG}"
     initialize_git "${SEARCH_GITHUB_FOLDER}" "${SEARCH_GITHUB_REPO}" "${SEARCH_GITHUB_BRANCH}" || :
-    initialize_git "${VHOST_GITHUB_FOLDER}" "${VHOST_GITHUB_REPO}" "${VHOST_GITHUB_BRANCH}" || :
     # run docker command
     pushd "${SEARCH_GITHUB_FOLDER}" || exit
     DOCKER_LOCAL_TAG="${SPHINX_IMAGE_TAG}" STAGING="${target}" DB="${tables}" make pg2sphinx

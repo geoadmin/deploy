@@ -6,7 +6,7 @@ USER=$(logname) # get user behind sudo su -
 # if trigger script is called by deploy.sh, log parents pid in syslog
 # PARENT_COMMAND: you will get empty_string if it was invoked by user and name_of_calling_script if it was invoked by other script.
 PARENT_COMMAND=$(ps $PPID | tail -n 1 | awk "{print \$6}")
-RDS_WRITER_HOST="master.chtopodb.bgdi.ch"
+RDS_WRITER_HOST="pg-geodata-master.bgdi.ch"
 SYSLOGPID=$$
 
 comment="manual db deploy"
