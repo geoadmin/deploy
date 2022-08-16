@@ -106,7 +106,7 @@ update_sphinx() {
     initialize_git "${SEARCH_GITHUB_FOLDER}" "${SEARCH_GITHUB_REPO}" "${SEARCH_GITHUB_BRANCH}" || :
     # run docker command
     pushd "${SEARCH_GITHUB_FOLDER}" || exit
-    DOCKER_LOCAL_TAG="${SPHINX_IMAGE_TAG}" STAGING="${target}" DB="${tables}" make pg2sphinx
+    TERM=xterm DOCKER_LOCAL_TAG="${SPHINX_IMAGE_TAG}" STAGING="${target}" DB="${tables}" make pg2sphinx
     popd || exit
 }
 
