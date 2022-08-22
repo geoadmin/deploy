@@ -340,7 +340,7 @@ copy_table() {
     primary_keys=$(PSQL -qAt -d "${source_db}" -c "${primary_keys_sql}")
 
     jobs=${CPUS}
-    rows=$(PSQL -qAt -d "${source_db}" -c "SELECT count(1) FROM ${source_schema}.${source_table};")
+    rows=$(PSQL -qAt -d "${source_db}" -c "SET enable_indexscan = off; SELECT count(1) FROM ${source_schema}.${source_table};")
     size=$(PSQL -qAt -d "${source_db}" -c "SELECT pg_size_pretty(pg_total_relation_size('"${source_schema}.${source_table}"'));")
     increment=$( Ceiling "${rows}" "${jobs}" )
     # no multithreading if less than 1000 rows
