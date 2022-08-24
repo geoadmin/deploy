@@ -5,6 +5,8 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # DUMPDIRECTORY="/home/geodata/db/"
 git_repo="git@github.com:geoadmin/db.git"
+mkdir -p "${MY_DIR}"/tmp
+
 git_dir=$(mktemp -d -p "${MY_DIR}/tmp" "$(basename "$0")"_XXXXX)
 trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
 
