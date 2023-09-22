@@ -12,9 +12,9 @@
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 display_usage() {
-    echo -e "Usage:\n$0 -d bod_database -t tag_name"
-    echo -e "\t-d bod_database wich will be dumped as json"
-    echo -e "\t-t name of the tag - Optional. Default value is -t bod_database value'\n"
+    echo -e "Usage:\\n$0 -d bod_database -t tag_name"
+    echo -e "\\t-d bod_database wich will be dumped as json"
+    echo -e "\\t-t name of the tag - Optional. Default value is -t bod_database value'\\n"
 }
 
 while getopts ":d:t:" options; do
@@ -43,13 +43,13 @@ root_branch="bod_review"
 git_repo="git@github.com:geoadmin/db.git"
 git_dir=$(mkdir -p "${MY_DIR}/tmp" && mktemp -d -p "${MY_DIR}/tmp"  "$(basename "$0")"_XXXXX)
 
-trap "rm -rf ${git_dir}" EXIT HUP INT QUIT TERM STOP PWR
+trap 'rm -rf ${git_dir}' EXIT HUP INT QUIT TERM PWR
 
 # sql queries, must have a valid choice of attributes for all bod stagings
 sql_layer_info="SELECT json_agg(row) FROM (SELECT bod_layer_id,topics,staging,bodsearch,download,chargeable FROM re3.view_bod_layer_info_de order by bod_layer_id asc) as row"
 sql_catalog="SELECT json_agg(row) FROM (SELECT distinct topic,bod_layer_id,selected_open,staging FROM re3.view_catalog where bod_layer_id > '' order by 1,2 ) as row"
 sql_layers_js="SELECT layer_id,row_to_json(t) as json FROM  (SELECT * FROM re3.view_layers_js order by layer_id asc) t"
-sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT fk_dataset_id,format,timestamp,resolution_min,resolution_max,topics,chargeable,staging,cache_ttl,s3_resolution_max FROM re3.view_bod_wmts_getcapabilities_de order by fk_dataset_id,format,timestamp asc) as row"
+sql_wmtsgetcap="SELECT json_agg(row) FROM (SELECT v.fk_dataset_id, array_to_string(formats, ',') as format, array_to_string(timestamps, ',') as timestamp,  t.resolution_min, v.resolution_max,  array_to_string(topics, ',') as topics, false as chargeable, staging, t.cache_ttl, t.s3_resolution_max FROM \"service-wmts\".view_wmts_getcapabilities_de v left join tileset t on v.fk_dataset_id = t.fk_dataset_id) as row"
 sql_topics="select json_agg(row) FROM (SELECT topic, default_background, selected_layers, background_layers,show_catalog, activated_layers, staging FROM re3.topics order by topic asc) as row"
 
 COMMAND="${0##*/} $* (pid: $$)"
@@ -113,7 +113,7 @@ generate_json() {
     PSQL -U www-data -d "$1" -qAt -c "${sql_catalog}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_catalog.json
     # re3.view_layers_js
     rm bod_review/re3.view_layers_js/*.json -rf
-    PSQL -U www-data -d "$1" -qAt -F ' ' -c "${sql_layers_js}" | while read -a Record; do
+    PSQL -U www-data -d "$1" -qAt -F ' ' -c "${sql_layers_js}" | while read -r -a Record; do
         echo "${Record[1]}" | python -m json.tool | sed 's/ *$//' > bod_review/re3.view_layers_js/"${Record[0]}".json
     done
 
