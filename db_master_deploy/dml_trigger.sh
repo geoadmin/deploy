@@ -6,8 +6,8 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shpinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
-SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-sphinxsearch.git"
-SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-sphinxsearch"
+SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-search-sphinx.git"
+SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
 
 # sphinxsearch published versions
 VHOST_GITHUB_BRANCH="master"
