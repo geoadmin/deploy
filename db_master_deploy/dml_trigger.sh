@@ -10,9 +10,10 @@ SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-search-sphinx.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
 
 # sphinxsearch published versions
-VHOST_GITHUB_BRANCH="master"
-VHOST_GITHUB_REPO="git@github.com:geoadmin/infra-vhost.git"
-VHOST_GITHUB_FOLDER="/data/geodata/automata/infra-vhost"
+K8S_GITHUB_BRANCH="feat_PB-82_search_k8s"
+K8S_GITHUB_REPO="git@github.com:geoadmin/infra-kubernetes.git"
+K8S_GITHUB_FOLDER="/data/geodata/automata/infra-kubernetes"
+
 
 # global variable set by get_sphinx_image_tag function
 SPHINX_IMAGE_TAG=""
@@ -82,15 +83,20 @@ initialize_git() {
 
 get_sphinx_image_tag() {
     ########################################
-    # gets the sphinx image tag from the infra-vhost repo for the given staging
+    # gets the sphinx image tag from the infra-kubernetes repo for the given staging
     # and saves the tag in the global variable SPHINX_IMAGE_TAG
     ########################################
     local staging=$1
-    initialize_git "${VHOST_GITHUB_FOLDER}" "${VHOST_GITHUB_REPO}" "${VHOST_GITHUB_BRANCH}" || :
+    local config_file
+    initialize_git "${K8S_GITHUB_FOLDER}" "${K8S_GITHUB_REPO}" "${K8S_GITHUB_BRANCH}" || :
 
-    if image_tag=$(grep SERVICE_SEARCH_SPHINX_DOCKER_IMAGE_TAG "${VHOST_GITHUB_FOLDER}/systems/api3/service-search/${staging}/${staging}.env"); then
-        mapfile -td = fields < <(printf "%s\\0" "${image_tag}")
-        SPHINX_IMAGE_TAG="${fields[1]}"
+    [[ ${staging} == "dev" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/dev/kustomization.yaml"
+    [[ ${staging} == "int" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/int/kustomization.yaml"
+    [[ ${staging} == "prod" ]]  && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/kustomization.yaml"
+
+    # yq -r is not printing only the value, that's why we need awk in the end
+    if image_tag=$(docker run --rm -i  mikefarah/yq '.images | map(select((.name | test "^.*service-search-sphinx$")) | .newTag)' < "${config_file}" | awk '{print $2}'); then
+        SPHINX_IMAGE_TAG="${image_tag}"
     else
         exitstatus=$?
         >&2 echo "no image tag found for staging ${staging}"
