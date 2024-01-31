@@ -10,7 +10,7 @@ SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-search-sphinx.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
 
 # sphinxsearch published versions
-K8S_GITHUB_BRANCH="feat_PB-82_search_k8s"
+K8S_GITHUB_BRANCH="master"
 K8S_GITHUB_REPO="git@github.com:geoadmin/infra-kubernetes.git"
 K8S_GITHUB_FOLDER="/data/geodata/automata/infra-kubernetes"
 
