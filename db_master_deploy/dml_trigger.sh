@@ -14,7 +14,7 @@ K8S_GITHUB_BRANCH="master"
 K8S_GITHUB_REPO="git@github.com:geoadmin/infra-kubernetes.git"
 K8S_GITHUB_FOLDER="/data/geodata/automata/infra-kubernetes"
 
-YQ="docker run --rm -i  mikefarah/yq"
+YQ="docker run --rm -i 974517877189.dkr.ecr.eu-central-1.amazonaws.com/external/openapi/yq:4.44.1"
 
 # global variable set by get_sphinx_image_tag function
 SPHINX_IMAGE_TAG=""
@@ -95,7 +95,7 @@ get_sphinx_image_tag() {
     [[ ${staging} == "int" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/int/kustomization.yaml"
     [[ ${staging} == "prod" ]]  && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/kustomization.yaml"
 
-    if image_tag=$(${YQ} '.images | filter(.name | test "service-search-sphinx$") .[] .newTag' "${config_file}"); then
+    if image_tag=$(${YQ} '.images | filter(.name | test "service-search-sphinx$") .[] .newTag' < "${config_file}"); then
         SPHINX_IMAGE_TAG="${image_tag}"
     else
         exitstatus=$?
