@@ -95,8 +95,7 @@ get_sphinx_image_tag() {
     [[ ${staging} == "int" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/int/kustomization.yaml"
     [[ ${staging} == "prod" ]]  && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/kustomization.yaml"
 
-    # yq -r is not printing only the value, that's why we need awk in the end
-    if image_tag=$(${YQ} '.images | map(select((.name | test "^.*service-search-sphinx$")) | .newTag)' < "${config_file}" | awk '{print $2}'); then
+    if image_tag=$(${YQ} '.images | filter(.name | test "service-search-sphinx$") .[] .newTag' "${config_file}"); then
         SPHINX_IMAGE_TAG="${image_tag}"
     else
         exitstatus=$?
