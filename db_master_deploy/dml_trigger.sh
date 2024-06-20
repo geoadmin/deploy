@@ -14,6 +14,7 @@ K8S_GITHUB_BRANCH="master"
 K8S_GITHUB_REPO="git@github.com:geoadmin/infra-kubernetes.git"
 K8S_GITHUB_FOLDER="/data/geodata/automata/infra-kubernetes"
 
+YQ="docker run --rm -i  mikefarah/yq"
 
 # global variable set by get_sphinx_image_tag function
 SPHINX_IMAGE_TAG=""
@@ -95,7 +96,7 @@ get_sphinx_image_tag() {
     [[ ${staging} == "prod" ]]  && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/kustomization.yaml"
 
     # yq -r is not printing only the value, that's why we need awk in the end
-    if image_tag=$(docker run --rm -i  mikefarah/yq '.images | map(select((.name | test "^.*service-search-sphinx$")) | .newTag)' < "${config_file}" | awk '{print $2}'); then
+    if image_tag=$(${YQ} '.images | map(select((.name | test "^.*service-search-sphinx$")) | .newTag)' < "${config_file}" | awk '{print $2}'); then
         SPHINX_IMAGE_TAG="${image_tag}"
     else
         exitstatus=$?
