@@ -518,7 +518,7 @@ check_toposhop() {
         # check if we have a valid standard deploy target
         if [[ ! ${targets} =~ ${target} ]]; then
             echo "valid standard deploy targets are: '${targets}'" >&2
-            #exit 0
+            exit 1
         fi
         unset ${ToposhopMode} &> /dev/null || :
     fi
