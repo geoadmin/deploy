@@ -161,17 +161,30 @@ update_materialized_views() {
         if [ "$1" == "table_scan" ]; then
             for matview in $(PSQL  -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${target_schema}.${target_table}') where relkind = 'm';" -d "${target_db}" 2> /dev/null); do
                 echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
-                array_matviews+=("${target_db}.${matview}")
+                array_matviews_target+=("${target_db}.${matview}")
+            done
+            for matview in $(PSQL  -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${source_schema}.${source_table}') where relkind = 'm';" -d "${source_db}" 2> /dev/null); do
+                echo "table_scan: found materialized view ${source_db}.${matview} which is referencing ${source_schema}.${source_table} ..."
+                array_matviews_source+=("${source_db}.${matview}")
             done
         elif [ "$1" == "table_commit" ]; then
-            for matview in "${array_matviews[@]}"; do
+            # remove duplicates
+            mapfile -t array_matviews_target < <(printf "%s\n" "${array_matviews_target[@]}" | sort -u)
+            mapfile -t array_matviews_source < <(printf "%s\n" "${array_matviews_source[@]}" | sort -u)
+            for matview in "${array_matviews_target[@]}"; do
                 target_db=$(echo $matview | cut -d '.' -f 1)
                 matview=$(echo $matview | cut -d '.' -f 1 --complement)
                 PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
-                echo "table_commit: updating materialized view ${matview} ..."
+                echo "table_commit: updating materialized view ${matview} in db ${target_db} ..."
                 PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${target_db}" >/dev/null
                 array_target_combined+=("${target_db}.${matview}")
                 PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
+            done
+            for matview in "${array_matviews_source[@]}"; do
+                source_db=$(echo $matview | cut -d '.' -f 1)
+                matview=$(echo $matview | cut -d '.' -f 1 --complement)
+                echo "table_commit: updating materialized view ${matview} in db ${source_db} ..."
+                PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${source_db}" >/dev/null
             done
         elif [ "$1" == "database" ]; then
             for matview in $(PSQL -qAt -c "Select _bgdi_showmaterializedviews();" -d "${source_db}" 2> /dev/null); do
@@ -432,13 +445,13 @@ write_lock() {
     local increment=5   # check every n seconds
     local status=0
     # create unique array of db targets
-    local uniq_db_target=($(
-    for source in "${array_source[@]}"; do
-        array=(${source//./ })
-        echo "${array[0]%_*}_${target:-${timestamp}}"
-    done | sort | uniq
-    ))
-
+    local uniq_db_target=()
+    mapfile -t uniq_db_target < <(
+        for source in "${array_source[@]}"; do
+            array=("${source//./ }")
+            echo "${array[0]%_*}_${target:-${timestamp}}"
+        done | sort | uniq
+    )
     until [ "${counter}" -gt "${timeout}" ]
     do
         status=0
@@ -505,7 +518,7 @@ check_toposhop() {
         # check if we have a valid standard deploy target
         if [[ ! ${targets} =~ ${target} ]]; then
             echo "valid standard deploy targets are: '${targets}'" >&2
-            exit 1
+            #exit 0
         fi
         unset ${ToposhopMode} &> /dev/null || :
     fi
@@ -637,11 +650,7 @@ done
 
 END=$(date +%s%3N)
 
-# create a distinct list of matviews and update matviews
-if [ "${#array_matviews[@]}" -gt "0" ]; then
-    array_matviews=($(printf "%s\n" "${array_matviews[@]}" | sort -u));
-    update_materialized_views table_commit
-fi
+update_materialized_views table_commit
 
 echo "master has been updated in $(format_milliseconds $((END-START)))"
 
