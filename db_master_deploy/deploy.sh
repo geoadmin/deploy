@@ -163,29 +163,38 @@ update_materialized_views() {
                 echo "table_scan: found materialized view ${target_db}.${matview} which is referencing ${target_schema}.${target_table} ..."
                 array_matviews_target+=("${target_db}.${matview}")
             done
-            for matview in $(PSQL  -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${source_schema}.${source_table}') where relkind = 'm';" -d "${source_db}" 2> /dev/null); do
-                echo "table_scan: found materialized view ${source_db}.${matview} which is referencing ${source_schema}.${source_table} ..."
-                array_matviews_source+=("${source_db}.${matview}")
-            done
+            # materilaized views in source database will only be updated when deploying from _master to dev,int,prod
+            if [[ ${source_db} =~ _master$ ]]; then
+                for matview in $(PSQL  -qAt -c "Select CASE WHEN strpos(view_name,'.')=0 THEN concat('public.',view_name) ELSE view_name END as view_name from _bgdi_analyzetable('${source_schema}.${source_table}') where relkind = 'm';" -d "${source_db}" 2> /dev/null); do
+                    echo "table_scan: found materialized view ${source_db}.${matview} which is referencing ${source_schema}.${source_table} ..."
+                    array_matviews_source+=("${source_db}.${matview}")
+                done
+            else
+                echo "table_scan: skipping materialized view update on database ${source_db}"
+            fi
         elif [ "$1" == "table_commit" ]; then
             # remove duplicates
             mapfile -t array_matviews_target < <(printf "%s\n" "${array_matviews_target[@]}" | sort -u)
             mapfile -t array_matviews_source < <(printf "%s\n" "${array_matviews_source[@]}" | sort -u)
-            for matview in "${array_matviews_target[@]}"; do
-                target_db=$(echo $matview | cut -d '.' -f 1)
-                matview=$(echo $matview | cut -d '.' -f 1 --complement)
-                PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
-                echo "table_commit: updating materialized view ${matview} in db ${target_db} ..."
-                PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${target_db}" >/dev/null
-                array_target_combined+=("${target_db}.${matview}")
-                PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
-            done
-            for matview in "${array_matviews_source[@]}"; do
-                source_db=$(echo $matview | cut -d '.' -f 1)
-                matview=$(echo $matview | cut -d '.' -f 1 --complement)
-                echo "table_commit: updating materialized view ${matview} in db ${source_db} ..."
-                PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${source_db}" >/dev/null
-            done
+            if [[ ${array_matviews_target[@]} ]]; then
+                for matview in "${array_matviews_target[@]}"; do
+                    target_db=$(echo $matview | cut -d '.' -f 1)
+                    matview=$(echo $matview | cut -d '.' -f 1 --complement)
+                    PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
+                    echo "table_commit: updating materialized view ${matview} in db ${target_db} ..."
+                    PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${target_db}" >/dev/null
+                    array_target_combined+=("${target_db}.${matview}")
+                    PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
+                done
+            fi
+            if [[ ${array_matviews_source[@]} ]]; then
+                for matview in "${array_matviews_source[@]}"; do
+                    source_db=$(echo $matview | cut -d '.' -f 1)
+                    matview=$(echo $matview | cut -d '.' -f 1 --complement)
+                    echo "table_commit: updating materialized view ${matview} in db ${source_db} ..."
+                    PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${source_db}" >/dev/null
+                done
+            fi
         elif [ "$1" == "database" ]; then
             for matview in $(PSQL -qAt -c "Select _bgdi_showmaterializedviews();" -d "${source_db}" 2> /dev/null); do
                 echo "database: updating materialized view ${source_db}.${matview} before starting deploy ..."

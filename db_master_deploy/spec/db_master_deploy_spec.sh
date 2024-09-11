@@ -307,6 +307,16 @@ EOF
         The stdout should include "table_scan: found materialized view ${target_db}.${matview_1} which is referencing . ..."
         The status should be success
       End
+      Example 'update_materialized_views_table_scan_source_not_master'
+        source_db="bod_dev"
+        target_db="bod_int"
+        PSQL() {
+          echo "${matview_1}"
+        }
+        When run update_materialized_views table_scan
+        The line 2 of stdout should eq "table_scan: skipping materialized view update on database ${source_db}"
+        The status should be success
+      End
       Example 'update_materialized_views_table_commit'
         PSQL() {
           :
