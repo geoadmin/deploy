@@ -450,7 +450,7 @@ write_lock() {
     local uniq_db_target=()
     mapfile -t uniq_db_target < <(
         for source in "${array_source[@]}"; do
-            array=("${source//./ }")
+            array=(${source//./ })
             echo "${array[0]%_*}_${target:-${timestamp}}"
         done | sort | uniq
     )
