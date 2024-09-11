@@ -10,7 +10,7 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 display_usage() {
     echo -e "Usage:\n$0 -s source_objects -t target_staging -a timestamp for BOD snapshot/archive (YYYYMMDD)"
     echo -e "\t-s comma delimited list of source databases and/or tables - mandatory"
-    echo -e "\t-t target staging - mandatory choose one of 'dev int prod demo tile'"
+    echo -e "\t-t target staging - mandatory choose one of 'dev int prod'"
     echo -e "\t-r refresh materialized views true|false - Optional, default: true'"
     echo -e "\t-d refresh sphinx indexes true|false - Optional, default: true'"
     echo -e "\t-a is optional and only valid for BOD, if you dont enter a target the script will just create an archive/snapshot copy of the bod"
@@ -293,12 +293,7 @@ copy_database() {
     DROPDB --if-exists "${target_db_tmp}" &> /dev/null
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${source_db}';" >/dev/null
 
-    # toposhop db's have to be created with owner swisstopo
-    if [[ -z "${ToposhopMode}" ]]; then
-        CREATEDB -O postgres --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
-    else
-        CREATEDB -O swisstopo --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
-    fi
+    CREATEDB -O postgres --encoding 'UTF-8' -T "${source_db}" "${target_db_tmp}" >/dev/null
 
     echo "replacing ${target_db} with ${target_db_tmp} ..."
     PSQL -d template1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${target_db}';" >/dev/null
@@ -309,10 +304,9 @@ copy_database() {
     # add some metainformation to the copied database as comment
     PSQL -d template1 -c "COMMENT ON DATABASE ${target_db} IS 'copied from ${source_db} on $(date '+%F %T') with command ${COMMAND} by user ${USER}';" > /dev/null
 
-    # set database to read-only if it is not a _master or _demo database and if not toposhop reverse deploy and if not diemo database
-    REGEX="^(master|demo)$"
-    REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
+    # set database to read-only if it is not a _master
+    REGEX="^master$"
+    if [[ ! ${target} =~ ${REGEX} ]]; then
         PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     else
         PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = off;" >/dev/null
@@ -426,10 +420,9 @@ copy_table() {
     # update materialized views in target database after table copy
     update_materialized_views table_scan
 
-    # set database to read-only if it is not a _master or _demo database or a diemo database
-    REGEX="^(master|demo)$"
-    REGEX_DIEMO="^diemo_(master|dev|int|prod)$"
-    if [[ ! ${target} =~ ${REGEX} && -z "${ToposhopMode}" && ! ${target_db} =~ ${REGEX_DIEMO} ]]; then
+    # set database to read-only if it is not a _master
+    REGEX="^master$"
+    if [[ ! ${target} =~ ${REGEX} ]]; then
         PSQL  -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
     fi
 }
@@ -501,36 +494,6 @@ lock() {
     eval "exec $fd>$lock_file"
     # acquier the lock
     flock -n "$fd" && return 0 || return 1
-}
-
-
-#######################################
-# check if toposhop deploy
-# Globals:
-#   target
-# Arguments:
-#   source_db
-# Returns:
-#   ToposhopMode (true|unset)
-#######################################
-check_toposhop() {
-    local source_db=$1
-    # check if toposhop deploy toposhop_prod -> toposhop_dev or toposhop_prod -> toposhop_int
-    if [[ "${source_db}" =~ ^toposhop_prod$ ]]; then
-        # check deploy targets, only dev and int target is allowed
-        if [[ ! ${targets_toposhop} =~ ${target} ]]; then
-            echo "valid toposhop deploy targets are: '${targets_toposhop}'" >&2
-            exit 1
-        fi
-        ToposhopMode=true
-    else
-        # check if we have a valid standard deploy target
-        if [[ ! ${targets} =~ ${target} ]]; then
-            echo "valid standard deploy targets are: '${targets}'" >&2
-            exit 1
-        fi
-        unset ${ToposhopMode} &> /dev/null || :
-    fi
 }
 
 
@@ -629,7 +592,6 @@ for source_object in "${array_source[@]}"; do
         array_target_table+=(${target_id})
         array_source_table+=(${source_object})
         array_target_combined+=(${target_id})
-        check_toposhop ${source_db}
         check_table # load check_table functions
             check_table_source # abort script if source table does not exist
             check_table_target # abort script if target table does not exist
@@ -648,7 +610,6 @@ for source_object in "${array_source[@]}"; do
         array_target_db+=(${target_db})
         array_source_db+=(${source_object})
         array_target_combined+=(${target_db})
-        check_toposhop ${source_db}
         check_database
         check_source
         update_materialized_views database
@@ -669,16 +630,16 @@ target_combined=$(IFS=, ; echo "${array_target_combined[*]}")
 
 # fire dml and ddl trigger in sub shell if not in ArchiveMode or ToposhopDeploy Mode
 # redirect customized stdout and stderr to standard ones
-if [[ -z "${ArchiveMode}" && -z "${ToposhopMode}" ]]; then
+if [[ -z "${ArchiveMode}" ]]; then
     (
-    [[ ! ${target} == tile && "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}" || :
+        [[ "${refreshsphinx}" =~ ^true$ ]] && bash "${MY_DIR}/dml_trigger.sh" -s "${target_combined}" -t "${target}" || :
     )
     if [ "${#array_target_db[@]}" -gt "0" ]
     then
         # fire ddl trigger in sub shell
         # redirect customized stdout and stderr to standard ones
         (
-        [[ ! ${target} == tile ]] &&  bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
+        bash "${MY_DIR}/ddl_trigger.sh" -s "${source_db}" -t "${target}"
         )
     fi
 fi

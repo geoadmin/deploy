@@ -495,34 +495,6 @@ EOF
       End
       mock_tear_down
     End
-    Describe 'check_toposhop'
-      source_code includes.sh
-      Example 'standard deploy valid target'
-        target=dev
-        When call check_toposhop stopo_master
-        The status should be success
-        The variable ToposhopMode should not be defined
-      End
-      Example 'standard deploy invalid target'
-        target=invalid_target
-        When run check_toposhop stopo_master
-        The status should be failure
-        The stderr should eq "valid standard deploy targets are: 'dev int prod demo tile'"
-      End
-      Example 'toposhop deploy valid target'
-        target=dev
-        When call check_toposhop toposhop_prod
-        The status should be success
-        The stderr should not be present
-        The variable ToposhopMode should be defined
-      End
-      Example 'toposhop deploy invalid target'
-        target=prod
-        When run check_toposhop toposhop_prod
-        The status should be failure
-        The stderr should eq "valid toposhop deploy targets are: 'dev int'"
-      End
-    End
     Describe 'check_input'
       source_code includes.sh
       target=dev
