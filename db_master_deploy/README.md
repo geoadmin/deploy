@@ -22,14 +22,14 @@ Each database has to have one of the following suffixes
 DB Suffix    | Meaning
 -------------|------------|
 **_master** |  Original database, will be continuosly updated, should not be used in any applications |
-**_dev**   | development copy of _master database  | 
-**_int**   | integration copy of _master database | 
-**_prod**  | production copy of _master database  | 
+**_dev**   | read-only development copy of _master database  | 
+**_int**   | read-only integration copy of _master database | 
+**_prod**  | read-only production copy of _master database  | 
 **_``[a-zA-Z0-9]``+** | timestamped copy of _master database (bod only, use parameter -a [a-zA-Z0-9]+ for the archive suffix) |
 
 ### copy databases and or tables (deploy.sh)
 You can copy a comma delimited list of tables and/or database to one target. 
-The following targets can be used ``dev int prod demo tile``. 
+The following targets can be used ``dev int prod``. 
 Normally we are deploying from a _master datasource to one of these targets. If you choose another source, the script will ask you for confirmation.
 Table copy is performance optimized sql copy from stdout to stdin. 
 The job will be using all the available cores by splitting up the table into  parts with equal number of rows, indexes and constraints will be removed before writing the table and re-created afterwards.
@@ -76,8 +76,11 @@ $ bash deploy.sh -s bod_dev,stopo_dev.tlm.strasse -t int
 
 #### materialized views
 materialized views are updated by default during:
-* database deploy - before the deploy begins in the source database
+* full database deploy - before the deploy begins in the source database
 * table deploy - after the deploy in the target database
+* table deploy - in the source database if the deploy is from `master` to `dev`
+
+for the table deploy, only the materialized views which rely on the deployed tables will be updated.
 
 you can deactivate the materialized view update with the optional parameter ``-r false``  
 
