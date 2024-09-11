@@ -148,6 +148,7 @@ check_database() {
 #   source_db
 #   source_schema
 #   source_table
+#   target
 #   target_db
 #   target_schema
 #   target_table
@@ -176,7 +177,7 @@ update_materialized_views() {
             # remove duplicates
             mapfile -t array_matviews_target < <(printf "%s\n" "${array_matviews_target[@]}" | sort -u)
             mapfile -t array_matviews_source < <(printf "%s\n" "${array_matviews_source[@]}" | sort -u)
-            if [[ ${array_matviews_target[@]} ]]; then
+            if [[ ${array_matviews_target[*]} ]]; then
                 for matview in "${array_matviews_target[@]}"; do
                     target_db=$(echo $matview | cut -d '.' -f 1)
                     matview=$(echo $matview | cut -d '.' -f 1 --complement)
@@ -187,12 +188,15 @@ update_materialized_views() {
                     PSQL -d template1 -c "alter database ${target_db} SET default_transaction_read_only = on;" >/dev/null
                 done
             fi
-            if [[ ${array_matviews_source[@]} ]]; then
+            # materialized views are only updated in source database when deploying from master -> dev
+            if [[ ${array_matviews_source[*]} ]] && [[ ${target} == "dev" ]]; then
                 for matview in "${array_matviews_source[@]}"; do
                     source_db=$(echo $matview | cut -d '.' -f 1)
                     matview=$(echo $matview | cut -d '.' -f 1 --complement)
-                    echo "table_commit: updating materialized view ${matview} in db ${source_db} ..."
-                    PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${source_db}" >/dev/null
+                    if [[ ${source_db} =~ _master$ ]]; then
+                        echo "table_commit: updating materialized view ${matview} in db ${source_db} ..."
+                        PGOPTIONS='--client-min-messages=warning' PSQL -qAt -c "Select _bgdi_refreshmaterializedviews('${matview}'::regclass::text);" -d "${source_db}" >/dev/null
+                    fi
                 done
             fi
         elif [ "$1" == "database" ]; then

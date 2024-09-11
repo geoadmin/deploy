@@ -317,16 +317,31 @@ EOF
         The line 2 of stdout should eq "table_scan: skipping materialized view update on database ${source_db}"
         The status should be success
       End
-      Example 'update_materialized_views_table_commit'
+      Example 'update_materialized_views_table_commit dev'
         PSQL() {
           :
         }
+        target=dev
         When call update_materialized_views table_commit
         The stderr should not be present
         The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${target_db} ..."
         The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${target_db} ..."
         The line 3 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${source_db} ..."
         The line 4 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${source_db} ..."
+        The variable array_target_combined should include "${matview_1}"
+        The status should be success
+      End
+      Example 'update_materialized_views_table_commit int'
+        PSQL() {
+          :
+        }
+        target=int
+        When call update_materialized_views table_commit
+        The stderr should not be present
+        The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${target_db} ..."
+        The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${target_db} ..."
+        The line 3 of stdout should not eq "table_commit: updating materialized view ${matview_1} in db ${source_db} ..."
+        The line 4 of stdout should not eq "table_commit: updating materialized view ${matview_2} in db ${source_db} ..."
         The variable array_target_combined should include "${matview_1}"
         The status should be success
       End
