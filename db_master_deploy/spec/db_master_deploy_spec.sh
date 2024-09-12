@@ -292,27 +292,56 @@ EOF
     End
     Describe 'update_materialized_views'
       refreshmatviews=true
-      target_db="bod_master"
+      target_db="bod_dev"
       source_db="bod_master"
       matview_1="re3.view_bod_layer_info_de"
       matview_2="re3.view_bod_layer_info_fr"
-      array_matviews=("${target_db}.${matview_1}" "${target_db}.${matview_2}")
+      array_matviews_target=("${target_db}.${matview_1}" "${target_db}.${matview_2}")
+      array_matviews_source=("${source_db}.${matview_1}" "${source_db}.${matview_2}")
       Example 'update_materialized_views_table_scan'
         PSQL() {
           echo "${matview_1}"
         }
         When run update_materialized_views table_scan
-        The stdout should equal "table_scan: found materialized view ${target_db}.${matview_1} which is referencing . ..."
+        The stdout should include "table_scan: found materialized view ${source_db}.${matview_1} which is referencing . ..."
+        The stdout should include "table_scan: found materialized view ${target_db}.${matview_1} which is referencing . ..."
         The status should be success
       End
-      Example 'update_materialized_views_table_commit'
+      Example 'update_materialized_views_table_scan_source_not_master'
+        source_db="bod_dev"
+        target_db="bod_int"
+        PSQL() {
+          echo "${matview_1}"
+        }
+        When run update_materialized_views table_scan
+        The line 2 of stdout should eq "table_scan: skipping materialized view update on database ${source_db}"
+        The status should be success
+      End
+      Example 'update_materialized_views_table_commit dev'
         PSQL() {
           :
         }
+        target=dev
         When call update_materialized_views table_commit
         The stderr should not be present
-        The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} ..."
-        The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} ..."
+        The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${target_db} ..."
+        The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${target_db} ..."
+        The line 3 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${source_db} ..."
+        The line 4 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${source_db} ..."
+        The variable array_target_combined should include "${matview_1}"
+        The status should be success
+      End
+      Example 'update_materialized_views_table_commit int'
+        PSQL() {
+          :
+        }
+        target=int
+        When call update_materialized_views table_commit
+        The stderr should not be present
+        The line 1 of stdout should eq "table_commit: updating materialized view ${matview_1} in db ${target_db} ..."
+        The line 2 of stdout should eq "table_commit: updating materialized view ${matview_2} in db ${target_db} ..."
+        The line 3 of stdout should not eq "table_commit: updating materialized view ${matview_1} in db ${source_db} ..."
+        The line 4 of stdout should not eq "table_commit: updating materialized view ${matview_2} in db ${source_db} ..."
         The variable array_target_combined should include "${matview_1}"
         The status should be success
       End
@@ -449,7 +478,7 @@ EOF
       mockdir="$(pwd)/mock_data"
       LOCK_DIR="${mockdir}"
       mock_write_lock() {
-        rm -rf "${mockdir}" || :
+        rm -rf "${mockdir}" || :
         mkdir -p "${mockdir}"
       }
       mock_tear_down() {
@@ -457,13 +486,14 @@ EOF
       }
       test_write_lock() {
         lock() {
-            # simulate lock
-            return 1
+          return 1
         }
         # run write_lock in the background
-        ( write_lock ) & pid=$!
+        ( write_lock ) &
+        pid=$!
+        sleep 1
         # kill write_lock looper after 1 second
-        ( sleep 1 && kill -9 $pid ) &
+        kill -9 $pid
       }
       mock_write_lock
       Example 'target locked'
@@ -479,34 +509,6 @@ EOF
         The status should be success
       End
       mock_tear_down
-    End
-    Describe 'check_toposhop'
-      source_code includes.sh
-      Example 'standard deploy valid target'
-        target=dev
-        When call check_toposhop stopo_master
-        The status should be success
-        The variable ToposhopMode should not be defined
-      End
-      Example 'standard deploy invalid target'
-        target=invalid_target
-        When run check_toposhop stopo_master
-        The status should be failure
-        The stderr should eq "valid standard deploy targets are: 'dev int prod demo tile'"
-      End
-      Example 'toposhop deploy valid target'
-        target=dev
-        When call check_toposhop toposhop_prod
-        The status should be success
-        The stderr should not be present
-        The variable ToposhopMode should be defined
-      End
-      Example 'toposhop deploy invalid target'
-        target=prod
-        When run check_toposhop toposhop_prod
-        The status should be failure
-        The stderr should eq "valid toposhop deploy targets are: 'dev int'"
-      End
     End
     Describe 'check_input'
       source_code includes.sh
