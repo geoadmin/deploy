@@ -121,6 +121,22 @@ check_table() {
             return 1
         fi
     }
+
+    check_table_partitions() {
+        # compare partitions of source and target table
+        partition_diff() {
+            diff \
+                <(PSQL -qAt -d "${source_db}" -c "SELECT inhrelid::regclass::text AS child FROM pg_catalog.pg_inherits WHERE  inhparent = '${source_schema}.${source_table}'::regclass;") \
+                <(PSQL -qAt -d "${target_db}" -c "SELECT inhrelid::regclass::text AS child FROM pg_catalog.pg_inherits WHERE  inhparent = '${target_schema}.${target_table}'::regclass;")
+        }
+        if ! partition_diff 1> /dev/null; then
+            {
+            echo "structure of source and target partitions is different."
+            partition_diff
+            } >&2
+            exit 1
+        fi
+    }
 }
 
 #######################################
@@ -372,7 +388,7 @@ copy_table() {
 
     echo "drop indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep "\bDROP INDEX\b" | PSQL -d "${target_db}"  2>/dev/null ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}*" -s "${source_db}" 2>/dev/null | grep -E "\bDROP INDEX\b" | PSQL -d "${target_db}" ) || true
     set -o pipefail
 
     # populate array with foreign key constraints on target table
@@ -411,7 +427,7 @@ copy_table() {
 
     echo "create indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}" -s "${source_db}" 2>/dev/null | egrep -i "\bcreate\b" | egrep -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${RDS_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}*" -s "${source_db}" 2>/dev/null | grep -E -i "\bcreate\b" | grep -E -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${RDS_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
     set -o pipefail
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
@@ -600,6 +616,7 @@ for source_object in "${array_source[@]}"; do
             check_table_source # abort script if source table does not exist
             check_table_target # abort script if target table does not exist
             check_table_schema # abort script if source and target schema are not identical
+            check_table_partitions # abort script if source and target partitions are not identical
             check_table_dependencies || continue # continue script if table has dependencies
         check_source
         copy_table
