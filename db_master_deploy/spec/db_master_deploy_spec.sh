@@ -269,6 +269,27 @@ EOF
         The stderr should equal "cannot copy table source_db.source_schema.source_table, table is referenced by 15 objects, use db_copy instead."
         The status should be failure
       End
+      Example 'check_table_partitions_true'
+        PSQL() {
+          echo 0
+        }
+        When run test_check_table check_table_partitions
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'check_table_dependencies_false'
+        PSQL() {
+          :
+        }
+        diff() {
+          return 1
+        }
+        When run test_check_table check_table_partitions
+        The stderr should equal "structure of source and target partitions is different."
+        The stdout should not be present
+        The status should be failure
+      End
     End
     Describe 'check_database'
       source_db="source_db"
