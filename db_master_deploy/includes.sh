@@ -27,7 +27,7 @@ DROPDB() {
 }
 
 CREATEDB() {
-   createdb -h ${RDS_WRITER_HOST} "$@"
+   createdb -h ${RDS_WRITER_HOST} --strategy=file_copy "$@"
 }
 
 PG_DUMP() {
