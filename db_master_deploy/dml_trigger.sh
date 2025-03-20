@@ -4,12 +4,12 @@
 
 MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shpinxsearch makefile
+# sphinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
 SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-search-sphinx.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
 
-# global variable set by get_sphinx_image_tag function
+# global variable set by get_sphinx_image_tag function
 SPHINX_IMAGE_TAG=""
 
 display_usage() {
@@ -51,7 +51,7 @@ done
 check_arguments() {
     # check for mandatory arguments
     if [[ -z "${target}" || -z "${tables}" ]]; then
-        echo "missing a required parameter (source_db -s and taget_db -t are required)" >&2
+        echo "missing a required parameter (source_db -s and target_db -t are required)" >&2
         display_usage
         exit 1
     fi
@@ -105,19 +105,19 @@ get_service_search_sphinx_version() {
 
     # Fetch the JSON data from the URL
     if ! json_data=$(curl --silent --fail "${url}"); then
-        >&2 echo "Failed to fetch data from ${url}"
+        echo >&2 "Failed to fetch data from ${url}"
         exit 1
     fi
 
     # Extract the version number using jq
     if ! version=$(echo "${json_data}" | jq -r '.[] | select(.name == "service-search-sphinx") | .version' 2>&1); then
-        >&2 echo "Failed to parse JSON data, error: ${version}"
+        echo >&2 "Failed to parse JSON data, error: ${version}"
         exit 1
     fi
 
     # Check if the version is empty
     if [[ -z "${version}" ]]; then
-        >&2 echo "No version found for service-search-sphinx in the JSON data"
+        echo >&2 "No version found for service-search-sphinx in the JSON data"
         exit 1
     fi
 
@@ -127,11 +127,11 @@ get_service_search_sphinx_version() {
 
 update_sphinx() {
     ########################################
-    # update the sphinx indexes
+    # update the sphinx indexes
     ########################################
     echo "Updating sphinx indexes on ${target} with db pattern ${tables} using sphinx image: ${SPHINX_IMAGE_TAG}"
     initialize_git "${SEARCH_GITHUB_FOLDER}" "${SEARCH_GITHUB_REPO}" "${SEARCH_GITHUB_BRANCH}" || :
-    # run docker command
+    # run docker command
     pushd "${SEARCH_GITHUB_FOLDER}" || exit
     TERM=xterm DOCKER_LOCAL_TAG="${SPHINX_IMAGE_TAG}" STAGING="${target}" DB="${tables}" make pg2sphinx
     popd || exit
