@@ -2,7 +2,7 @@
 #
 # update sphinx index
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shpinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
@@ -28,20 +28,20 @@ display_usage() {
 
 while getopts ":s:t:" options; do
     case "${options}" in
-        t)
-            target=${OPTARG}
-            ;;
-        s)
-            tables=${OPTARG}
-            ;;
-        \? )
-            display_usage
-            exit 1
-            ;;
-        *)
-            display_usage
-            exit 1
-            ;;
+    t)
+        target=${OPTARG}
+        ;;
+    s)
+        tables=${OPTARG}
+        ;;
+    \?)
+        display_usage
+        exit 1
+        ;;
+    *)
+        display_usage
+        exit 1
+        ;;
     esac
 done
 
@@ -78,7 +78,7 @@ initialize_git() {
             git checkout "${branch}"
             git reset --hard origin/"${branch}"
             popd || exit
-        } &> /dev/null
+        } &>/dev/null
     fi
 }
 
@@ -91,11 +91,11 @@ get_sphinx_image_tag() {
     local config_file
     initialize_git "${K8S_GITHUB_FOLDER}" "${K8S_GITHUB_REPO}" "${K8S_GITHUB_BRANCH}" || :
 
-    [[ ${staging} == "dev" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/dev/kustomization.yaml"
-    [[ ${staging} == "int" ]]   && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/int/kustomization.yaml"
-    [[ ${staging} == "prod" ]]  && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/kustomization.yaml"
+    [[ ${staging} == "dev" ]] && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/dev/patch-image-service-search-sphinx.yaml"
+    [[ ${staging} == "int" ]] && config_file="${K8S_GITHUB_FOLDER}/services/service-search/overlays/int/patch-image-service-search-sphinx.yaml"
+    [[ ${staging} == "prod" ]] && config_file="${K8S_GITHUB_FOLDER}/services/service-search/base/patch-image-service-search-sphinx.yaml"
 
-    if image_tag=$(${YQ} '.images | filter(.name | test "service-search-sphinx$") .[] .newTag' < "${config_file}"); then
+    if image_tag=$(${YQ} '.imageTag.newTag' <"${config_file}"); then
         SPHINX_IMAGE_TAG="${image_tag}"
     else
         exitstatus=$?
@@ -129,4 +129,4 @@ check_arguments
 get_sphinx_image_tag "${target}"
 update_sphinx
 END_DML=$(date +%s%3N)
-echo "$(date +"[%F %T]") finished ${COMMAND} in $(format_milliseconds $((END_DML-START_DML)))"
+echo "$(date +"[%F %T]") finished ${COMMAND} in $(format_milliseconds $((END_DML - START_DML)))"
