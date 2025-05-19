@@ -91,22 +91,24 @@ get_service_search_sphinx_version() {
     # located at the provided URL
     ########################################
     local staging=$1
-    local rdm_number=$(( ( RANDOM % 100 ) ))
-    local url="https://sys-api3.${staging}.bgdi.ch/rest/services/ech/SearchServer/info?rdm=${rdm_number}"
     local prefix=""
     local version
     local json_data
 
+    # Declare associative array for domain
+    declare -A domain_name
+    domain_name[dev]="sys-api3.dev.bgdi.ch"
+    domain_name[int]="sys-api3.int.bgdi.ch"
+    domain_name[prod]="api3.geo.admin.ch"
+
+    local url="https://${domain_name[$staging]}/rest/services/ech/SearchServer/info"
+
     # milestone beta images are prefixed with dev- for ecr lifecycle policy
     [[ ${staging} == "dev" ]] && prefix="dev-"
 
-    #if [[ ${staging} == "prod" ]] || [[ ${staging} == "int" ]]; then
-    if [[ ${staging} == "prod" ]]; then
-        url="https://api3.geo.admin.ch/rest/services/ech/SearchServer/info?rdm=${rdm_number}"
-    fi
 
     # Fetch the JSON data from the URL
-    if ! json_data=$(curl --silent --fail "${url}"); then
+    if ! json_data=$(curl --silent --fail --header "If-None-Match" "${url}"); then
         echo >&2 "Failed to fetch data from ${url}"
         exit 1
     fi
