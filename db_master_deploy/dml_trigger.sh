@@ -6,7 +6,7 @@ MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # sphinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
-SEARCH_GITHUB_REPO="git@github.com:geoadmin/service-search-sphinx.git"
+SEARCH_GITHUB_REPO="git@github.com-repo-service-search-sphinx:geoadmin/service-search-sphinx.git"
 SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
 
 # global variable set by get_sphinx_image_tag function

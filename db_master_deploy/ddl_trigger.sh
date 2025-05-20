@@ -4,7 +4,7 @@
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # DUMPDIRECTORY="/home/geodata/db/"
-git_repo="git@github.com:geoadmin/db.git"
+git_repo="git@github.com-repo-db:geoadmin/db.git"
 mkdir -p "${MY_DIR}"/tmp
 
 git_dir=$(mktemp -d -p "${MY_DIR}/tmp" "$(basename "$0")"_XXXXX)
@@ -40,7 +40,7 @@ done
 
 
 check_access() {
-    # check for mandatory arguments 
+    # check for mandatory arguments
     if [[ -z "${source_db}" || -z "${target}" ]]; then
         echo "missing a required parameter (source_db -s and staging -t are required)" >&2
         exit 1
@@ -115,7 +115,7 @@ source "${MY_DIR}/includes.sh"
 check_env
 
 
-echo "start ${COMMAND}" 
+echo "start ${COMMAND}"
 START_DDL=$(date +%s%3N)
 check_access
 initialize_git 2>&1
