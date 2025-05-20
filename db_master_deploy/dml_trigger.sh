@@ -108,7 +108,7 @@ get_service_search_sphinx_version() {
 
 
     # Fetch the JSON data from the URL
-    if ! json_data=$(curl --silent --fail --header "If-None-Match: $(uuid)" "${url}"); then
+    if ! json_data=$(curl --silent --fail --header "If-None-Match: $(uuidgen)" "${url}"); then
         echo >&2 "Failed to fetch data from ${url}"
         exit 1
     fi
