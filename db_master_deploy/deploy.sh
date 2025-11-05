@@ -283,10 +283,10 @@ check_source() {
 
     #check if master is the source and, if not, ask for confirmation but only once
     if [[ ! ${source_db} == *_master ]]; then
-        echo -n "Master is not the selected source. Do you want to continue? (y/n)"
+        echo -n "Master is not the selected source. Do you want to continue? (YES/NO)"
         echo
         [ "${answer+x}" ] || read answer
-        if [ ! "${answer}" == "y" ]; then
+        if [ ! "${answer}" == "YES" ]; then
             echo "deploy aborted"
             exit 1
         fi
@@ -571,12 +571,60 @@ fi
 for source_object in "${array_source[@]}"; do
     local array=(${source_object//./ })
     # check source objects
-    if [ "${#array[@]}" -ne "3" -a "${#array[@]}" -ne "1" ]; then
+    if [ "${#array[@]}" -ne "3" ] && [ "${#array[@]}" -ne "1" ]; then
         echo "table data sources have to be formatted like this: db.schema.table, database sources like this: db" >&2
         exit 1
     fi
 done
 }
+
+#######################################
+# check for whole database deployments to prod and prompt for confirmation
+# Globals:
+#   forcedeploy
+#   target
+#   array_source
+#   source_objects
+#   red
+#   NC
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+check_prod_database_confirmation() {
+    # Skip if forcedeploy flag is set (bypass with -y)
+    [[ "${forcedeploy+x}" ]] && return 0
+
+    # Check if target is production
+    if [[ "${target}" == "prod" ]]; then
+        # Check if any source objects are databases (single element, not table format)
+        local has_database_deployment=false
+        for source_object in "${array_source[@]}"; do
+            local array=(${source_object//./ })
+            # If array has 1 element, it's a database deployment
+            if [ "${#array[@]}" -eq "1" ]; then
+                has_database_deployment=true
+                break
+            fi
+        done
+
+        if [[ "${has_database_deployment}" == "true" ]]; then
+            echo -e "\n${red}WARNING: You are about to deploy whole database(s) to PRODUCTION!${NC}"
+            echo "This will completely replace the production database(s) with the source database(s)."
+            echo -e "Source objects: ${array_source[*]}"
+            echo -e "Target: ${target}\n"
+            echo -e "Are you absolutely sure you want to proceed? (type 'YES' to confirm): "
+            read confirmation
+            if [[ "${confirmation}" != "YES" ]]; then
+                echo "Production database deployment cancelled."
+                exit 1
+            fi
+            echo -e "\nProceeding with production database deployment...\n"
+        fi
+    fi
+}
+
 
 [ "$0" = "${BASH_SOURCE[*]}" ] || return 0
 source "${MY_DIR}/includes.sh"
@@ -592,6 +640,8 @@ START=$(date +%s%3N)
 
 echo "$(date +"[%F %T]") start ${COMMAND}"
 check_input
+check_prod_database_confirmation
+
 # start loop and stop the script if db target is blocked by another db deploy
 write_lock
 
