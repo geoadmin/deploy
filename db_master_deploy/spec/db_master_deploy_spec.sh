@@ -138,16 +138,16 @@ Describe 'deploy.sh'
         The stderr should start with 'You may not copy a db or table over itself'
         The status should be failure
       End
-      Example 'source is not _master - n'
+      Example 'source is not _master - NO'
         target_db="testdb_prod"
-        answer="n"
+        answer="NO"
         When run check_source
         The stdout should start with 'Master is not the selected source'
         The status should be failure
       End
-      Example 'source is not _master - y'
+      Example 'source is not _master - YES'
         target_db="testdb_prod"
-        answer="y"
+        answer="YES"
         When run check_source
         The stdout should start with 'Master is not the selected source'
         The status should be success
@@ -587,6 +587,63 @@ EOF
         The stderr should eq 'table data sources have to be formatted like this: db.schema.table, database sources like this: db'
       End
     End
+    Describe 'check_prod_database_confirmation'
+      source_code includes.sh
+      target='prod'
+      array_source=("bod_master")
+      red='\033[0;31m'
+      NC='\033[0m'
+      Example 'bypass with forcedeploy flag'
+        forcedeploy=true
+        When run check_prod_database_confirmation 1
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'non-production target'
+        target='dev'
+        When run check_prod_database_confirmation 2
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'production target with table deployment'
+        array_source=('bod_master.public.tileset')
+        When run check_prod_database_confirmation 3
+        The stdout should not be present
+        The stderr should not be present
+        The status should be success
+      End
+      Example 'production target with database deployment - confirm YES'
+        Data "YES"
+        When run check_prod_database_confirmation
+        The stdout should include "WARNING: You are about to deploy whole database(s) to PRODUCTION!"
+        The stdout should include "This will completely replace the production database(s) with the source database(s)."
+        The stdout should include "Source objects: ${array_source[*]}"
+        The stdout should include "Target: prod"
+        The stdout should include "Are you absolutely sure you want to proceed? (type 'YES' to confirm):"
+        The stdout should include "Proceeding with production database deployment..."
+        The status should be success
+      End
+      Example 'production target with database deployment - confirm NO'
+        Data "NO"
+        When run check_prod_database_confirmation
+        The stdout should include "WARNING: You are about to deploy whole database(s) to PRODUCTION!"
+        The stdout should include "This will completely replace the production database(s) with the source database(s)."
+        The stdout should include "Source objects: ${array_source[*]}"
+        The stdout should include "Target: prod"
+        The stdout should include "Are you absolutely sure you want to proceed? (type 'YES' to confirm):"
+        The stdout should include "Production database deployment cancelled."
+        The status should be failure
+      End
+      Example 'production target with mixed deployments'
+        array_source=("bod_master" "stopo_master.some.other_table")
+        Data "YES"
+        When run check_prod_database_confirmation
+        The stdout should include "WARNING: You are about to deploy whole database(s) to PRODUCTION!"
+        The status should be success
+      End
+    End
   End
   mock_tear_down
 End
@@ -663,10 +720,14 @@ Describe 'ddl_trigger.sh'
     Example 'git comment'
       source_db="stopo_master"
       git() {
-        echo "$@"
+        if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
+          echo "M  some_file.sql"
+        else
+          return 0
+        fi
       }
       test() {
-        update_git
+        update_git 2>/dev/null
         cat deploy.log
       }
       When call test
