@@ -100,7 +100,7 @@ check_table() {
             printf "%-69s %-70s\n" "${source_db}.${source_schema}.${source_table}" "${target_db}.${target_schema}.${target_table}"
             printf '%140s\n' | tr ' ' -
             pr -w 140 -m -t <( echo "${source_columns}" ) <( echo "${target_columns}" )
-            diff <( echo "${source_columns}" ) <( echo "${target_columns}" ) | colordiff
+            diff <( echo "${source_columns}" ) <( echo "${target_columns}" )
             } >&2
             exit 1
         fi
