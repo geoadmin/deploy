@@ -12,5 +12,5 @@ swisstopo2integrationwithsnapshot.sh
 swisstopo2prod.sh
 .venv
 */tmp*/
-db_master_deploy/service-sphinxsearch/
+db_master_deploy/db-deploy-sphinx/
 
