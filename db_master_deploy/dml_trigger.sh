@@ -7,7 +7,7 @@ MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # sphinxsearch makefile
 SEARCH_GITHUB_BRANCH="master"
 SEARCH_GITHUB_REPO="git@github.com-repo-service-search-sphinx:geoadmin/service-search-sphinx.git"
-SEARCH_GITHUB_FOLDER="/data/geodata/automata/service-search-sphinx"
+SEARCH_GITHUB_FOLDER="${MY_DIR}/db-deploy-sphinx"
 
 # global variable set by get_sphinx_image_tag function
 SPHINX_IMAGE_TAG=""
@@ -134,7 +134,7 @@ update_sphinx() {
     # update the sphinx indexes
     ########################################
     echo "Updating sphinx indexes on ${target} with db pattern ${tables} using sphinx image: ${SPHINX_IMAGE_TAG}"
-    initialize_git "${SEARCH_GITHUB_FOLDER}" "${SEARCH_GITHUB_REPO}" "${SEARCH_GITHUB_BRANCH}" || :
+    initialize_git "${SEARCH_GITHUB_FOLDER}" "${SEARCH_GITHUB_REPO}" "${SEARCH_GITHUB_BRANCH}"
     # run docker command
     pushd "${SEARCH_GITHUB_FOLDER}" || exit
     TERM=xterm DOCKER_LOCAL_TAG="${SPHINX_IMAGE_TAG}" STAGING="${target}" DB="${tables}" make pg2sphinx
