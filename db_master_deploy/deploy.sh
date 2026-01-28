@@ -90,9 +90,9 @@ check_table() {
 
     check_table_schema() {
         # check if source and target table have the same structure (column name and data type)
-        source_columns=$(PSQL -d "${source_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' order by 1;")
-        columns=$(PSQL -d "${source_db}" -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command
-        target_columns=$(PSQL -d "${target_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}' order by 1;")
+        source_columns=$(PSQL -d "${source_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' AND is_generated = 'NEVER' order by 1;")
+        columns=$(PSQL -d "${source_db}" -Atc "select column_name FROM information_schema.columns WHERE table_schema = '${source_schema}' AND table_name = '${source_table}' AND is_generated = 'NEVER';" | xargs | sed -e 's/ /,/g') # comma separted list of all attributes for order independent copy command
+        target_columns=$(PSQL -d "${target_db}" -Atc "select column_name,data_type FROM information_schema.columns WHERE table_schema = '${target_schema}' AND table_name = '${target_table}' AND is_generated = 'NEVER' order by 1;")
         if [ ! "${source_columns}" == "${target_columns}" ]; then
             {
             echo "structure of source and target table is different."
