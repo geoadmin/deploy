@@ -386,9 +386,15 @@ copy_table() {
     fi
     echo "multithread copy ${source_id} to ${target_id} rows: ${rows} threads: ${jobs} rows/thread: ${increment} size: ${size} attached slaves: ${attached_slaves}"
 
+    # Build explicit -t args for pg_dump: parent table + all partition children (avoids wildcard matching unrelated tables)
+    pg_dump_table_args=(-t "${source_schema}.${source_table}")
+    while IFS= read -r partition; do
+        [ -n "${partition}" ] && pg_dump_table_args+=(-t "${partition}")
+    done < <(PSQL -qAt -d "${source_db}" -c "SELECT inhrelid::regclass::text AS child FROM pg_catalog.pg_inherits WHERE inhparent = '${source_schema}.${source_table}'::regclass;" 2>/dev/null)
+
     echo "drop indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}*" -s "${source_db}" 2>/dev/null | grep -E "\bDROP INDEX\b" | PSQL -d "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c "${pg_dump_table_args[@]}" -s "${source_db}" 2>/dev/null | grep -E "\bDROP INDEX\b" | PSQL -d "${target_db}" ) || true
     set -o pipefail
 
     # populate array with foreign key constraints on target table
@@ -427,7 +433,7 @@ copy_table() {
 
     echo "create indexes on ${target_id}"
     set +o pipefail
-    ( PG_DUMP --if-exists -c -t "${source_schema}.${source_table}*" -s "${source_db}" 2>/dev/null | grep -E -i "\bcreate\b" | grep -E -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${RDS_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
+    ( PG_DUMP --if-exists -c "${pg_dump_table_args[@]}" -s "${source_db}" 2>/dev/null | grep -E -i "\bcreate\b" | grep -E -i "\bindex\b" | sed "s/^/set search_path = ${source_schema}, public, pg_catalog; /" | sed "s/'/\\\'/g" | xargs --max-procs=${jobs} -I '{}' sh -c "psql -X -h ${RDS_WRITER_HOST} -d \$@ -c \"{}\"" -- "${target_db}" ) || true
     set -o pipefail
 
     if [ "${#foreign_keys[@]}" -gt 0 ]; then
